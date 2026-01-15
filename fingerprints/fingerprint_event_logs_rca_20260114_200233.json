@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "fingerprint_schema_version": "1.0.0",
+    "generated_at": "2026-01-14T20:02:33.076292",
+    "generator_version": "3.0.0",
+    "event_log_path": "data/event_logs_rca.json",
+    "event_log_size_bytes": 15766,
+    "events_parsed": 37,
+    "events_total": 37,
+    "parsing_issues": []
+  },
+  "semantic": {
+    "dag": {
+      "stages": [
+        {
+          "stage_id": 0,
+          "stage_name": "Stage 0: scan-parquet",
+          "num_partitions": 50,
+          "is_shuffle_stage": false,
+          "rdd_name": null,
+          "description": "Stage 0: Unknown (50 tasks)"
+        },
+        {
+          "stage_id": 1,
+          "stage_name": "Stage 1: sort-merge-join",
+          "num_partitions": 100,
+          "is_shuffle_stage": false,
+          "rdd_name": null,
+          "description": "Stage 1: Unknown (100 tasks)"
+        },
+        {
+          "stage_id": 2,
+          "stage_name": "Stage 2: aggregate",
+          "num_partitions": 50,
+          "is_shuffle_stage": false,
+          "rdd_name": null,
+          "description": "Stage 2: Unknown (50 tasks)"
+        }
+      ],
+      "edges": [],
+      "root_stage_ids": [
+        0,
+        1,
+        2
+      ],
+      "leaf_stage_ids": [
+        0,
+        1,
+        2
+      ],
+      "total_stages": 3
+    },
+    "physical_plan": {
+      "node_id": "root",
+      "operator": "HashAggregateExec",
+      "estimated_rows": null,
+      "estimated_bytes": null,
+      "attributes": {
+        "op": "HashAggregateExec",
+        "children": [
+          {
+            "op": "SortMergeJoinExec",
+            "children": []
+          }
+        ]
+      },
+      "children": [
+        "child_0"
+      ],
+      "description": "HashAggregateExec"
+    },
+    "logical_plan_hash": {
+      "plan_hash": "325a571d384934f7f788459df3d09a9efef40a8980595d29038ec0b639b62648",
+      "plan_text": "[HashAggregateExec] HashAggregateExec\n  -> child_0",
+      "is_sql": true
+    },
+    "semantic_hash": "2e9f8858800ee6b7aa56e4297524ae82a5299f5d9167ffc52e3486db28288e79",
+    "description": "SQL query with 3 stages; 200 total partitions",
+    "evidence_sources": [
+      "StageCompleted[0]",
+      "StageCompleted[1]",
+      "StageCompleted[2]",
+      "SQLExecution[1]"
+    ]
+  },
+  "context": {
+    "spark_config": {
+      "spark_version": "3.4.0",
+      "scala_version": null,
+      "java_version": null,
+      "hadoop_version": null,
+      "app_name": "etl-sales-aggregation-job",
+      "master_url": "unknown",
+      "config_params": {},
+      "description": "Spark 3.4.0 application: etl-sales-aggregation-job"
+    },
+    "executor_config": {
+      "total_executors": 4,
+      "executor_memory_mb": 1024,
+      "executor_cores": 1,
+      "driver_memory_mb": 1024,
+      "driver_cores": 1,
+      "description": "4 executors \u00d7 1024MB \u00d7 1 cores each; Driver: 1024MB \u00d7 1 cores"
+    },
+    "submit_params": {
+      "submit_time": "2025-01-14T19:00:00",
+      "user": "spark_user",
+      "app_id": "app-20260114180000-rca",
+      "queue": null,
+      "additional_params": {}
+    },
+    "jvm_settings": {},
+    "optimizations_enabled": [
+      "WholeStageCodegen"
+    ],
+    "description": "Spark 3.4.0; 4 executors; 1024MB per executor; Optimizations: WholeStageCodegen",
+    "evidence_sources": [
+      "ApplicationStart",
+      "EnvironmentUpdate",
+      "BlockManagerAdded(5 events)"
+    ]
+  },
+  "metrics": {
+    "execution_summary": {
+      "total_duration_ms": 80200,
+      "total_tasks": 21,
+      "total_stages": 3,
+      "total_input_bytes": 157286400,
+      "total_output_bytes": 52428800,
+      "total_shuffle_bytes": 7902068736,
+      "total_spill_bytes": 8649179136,
+      "failed_task_count": 6,
+      "executor_loss_count": 0,
+      "max_concurrent_tasks": 100
+    },
+    "stage_metrics": [
+      {
+        "stage_id": 0,
+        "num_tasks": 3,
+        "num_failed_tasks": 0,
+        "task_duration_ms": {
+          "min_val": 2000.0,
+          "p25": 2000.0,
+          "p50": 2100.0,
+          "p75": 2100.0,
+          "p99": 2100.0,
+          "max_val": 2200.0,
+          "mean": 2100.0,
+          "stddev": 81.64965809277261,
+          "count": 3,
+          "outlier_count": 0
+        },
+        "input_bytes": 157286400,
+        "output_bytes": 0,
+        "shuffle_read_bytes": 0,
+        "shuffle_write_bytes": 78643200,
+        "spill_bytes": 0,
+        "partition_count": 3
+      },
+      {
+        "stage_id": 1,
+        "num_tasks": 15,
+        "num_failed_tasks": 6,
+        "task_duration_ms": {
+          "min_val": 3000.0,
+          "p25": 5000.0,
+          "p50": 8000.0,
+          "p75": 25000.0,
+          "p99": 30000.0,
+          "max_val": 50000.0,
+          "mean": 15733.333333333334,
+          "stddev": 13228.588570046146,
+          "count": 15,
+          "outlier_count": 1
+        },
+        "input_bytes": 0,
+        "output_bytes": 0,
+        "shuffle_read_bytes": 5739905024,
+        "shuffle_write_bytes": 1821376512,
+        "spill_bytes": 8373927936,
+        "partition_count": 15
+      },
+      {
+        "stage_id": 2,
+        "num_tasks": 3,
+        "num_failed_tasks": 0,
+        "task_duration_ms": {
+          "min_val": 5000.0,
+          "p25": 5000.0,
+          "p50": 8000.0,
+          "p75": 8000.0,
+          "p99": 8000.0,
+          "max_val": 15000.0,
+          "mean": 9333.333333333334,
+          "stddev": 4189.935029992178,
+          "count": 3,
+          "outlier_count": 0
+        },
+        "input_bytes": 0,
+        "output_bytes": 52428800,
+        "shuffle_read_bytes": 262144000,
+        "shuffle_write_bytes": 0,
+        "spill_bytes": 275251200,
+        "partition_count": 3
+      }
+    ],
+    "task_distribution": {
+      "duration_ms": {
+        "min_val": 2000.0,
+        "p25": 5000.0,
+        "p50": 8000.0,
+        "p75": 20000.0,
+        "p99": 30000.0,
+        "max_val": 50000.0,
+        "mean": 12871.42857142857,
+        "stddev": 12317.434135138268,
+        "count": 21,
+        "outlier_count": 1
+      },
+      "input_bytes": {
+        "min_val": 0.0,
+        "p25": 0.0,
+        "p50": 0.0,
+        "p75": 0.0,
+        "p99": 52428800.0,
+        "max_val": 52428800.0,
+        "mean": 7489828.571428572,
+        "stddev": 18346258.26091867,
+        "count": 21,
+        "outlier_count": 3
+      },
+      "output_bytes": {
+        "min_val": 0.0,
+        "p25": 0.0,
+        "p50": 0.0,
+        "p75": 0.0,
+        "p99": 15728640.0,
+        "max_val": 26214400.0,
+        "mean": 2496609.523809524,
+        "stddev": 6595964.873947359,
+        "count": 21,
+        "outlier_count": 2
+      },
+      "shuffle_read_bytes": {
+        "min_val": 0.0,
+        "p25": 78643200.0,
+        "p50": 314572800.0,
+        "p75": 419430400.0,
+        "p99": 524288000.0,
+        "max_val": 1073741824.0,
+        "mean": 285811858.28571427,
+        "stddev": 254248369.3387132,
+        "count": 21,
+        "outlier_count": 1
+      },
+      "shuffle_write_bytes": {
+        "min_val": 0.0,
+        "p25": 0.0,
+        "p50": 26214400.0,
+        "p75": 157286400.0,
+        "p99": 262144000.0,
+        "max_val": 536870912.0,
+        "mean": 90477129.14285715,
+        "stddev": 131852470.42116238,
+        "count": 21,
+        "outlier_count": 1
+      },
+      "spill_bytes": {
+        "min_val": 0.0,
+        "p25": 78643200.0,
+        "p50": 471859200.0,
+        "p75": 629145600.0,
+        "p99": 786432000.0,
+        "max_val": 1610612736.0,
+        "mean": 411865673.14285713,
+        "stddev": 392353509.8149997,
+        "count": 21,
+        "outlier_count": 1
+      }
+    },
+    "anomalies": [
+      {
+        "anomaly_type": "task_failures",
+        "severity": "high",
+        "description": "6 task(s) failed",
+        "affected_stages": [],
+        "affected_tasks": [
+          53,
+          55,
+          57,
+          59,
+          61,
+          63
+        ],
+        "metric_name": null,
+        "metric_value": null,
+        "evidence": {
+          "failure_count": 6
+        }
+      },
+      {
+        "anomaly_type": "high_spill",
+        "severity": "medium",
+        "description": "Total spill: 8248.5 MB - memory pressure detected",
+        "affected_stages": [],
+        "affected_tasks": null,
+        "metric_name": "spill_bytes",
+        "metric_value": 8649179136.0,
+        "evidence": {
+          "total_spill_mb": 8248.5
+        }
+      },
+      {
+        "anomaly_type": "high_shuffle",
+        "severity": "low",
+        "description": "Total shuffle: 7.4 GB",
+        "affected_stages": [],
+        "affected_tasks": null,
+        "metric_name": "shuffle_bytes",
+        "metric_value": 7902068736.0,
+        "evidence": {}
+      }
+    ],
+    "key_performance_indicators": {
+      "throughput_bytes_per_sec": 1961177.0573566083,
+      "avg_task_duration_ms": 12871.42857142857,
+      "task_failure_rate": 0.2857142857142857,
+      "shuffle_to_input_ratio": 50.24
+    },
+    "description": "Completed in 80.2 seconds; Shuffle: 7.4 GB; 6 failed tasks; 3 anomalies detected",
+    "evidence_sources": [
+      "TaskEnd(21 events)",
+      "StageCompleted(3 events)"
+    ]
+  },
+  "execution_class": "memory_bound",
+  "analysis_hints": [
+    "\u26a0\ufe0f 3 anomalies detected - investigate impact",
+    "\ud83d\udd34 High memory spill - consider increasing executor memory or reducing partition size",
+    "\ud83d\udd34 Significant task failure rate - check executor logs for errors",
+    "\ud83d\udfe1 Large shuffle volume - consider optimizing join/groupBy logic"
+  ]
+}
