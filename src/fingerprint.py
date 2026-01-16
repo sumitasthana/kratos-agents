@@ -4,9 +4,13 @@ Main Fingerprint Generator Orchestrator
 Coordinates extraction of all three fingerprint layers and produces complete ExecutionFingerprint.
 """
 
+import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from src.schemas import (
     ExecutionFingerprint,
@@ -48,6 +52,8 @@ class ExecutionFingerprintGenerator:
         Raises:
             ValueError: If event log cannot be parsed or is missing critical events
         """
+        total_start = time.time()
+        
         # Validate event log
         if not self.events:
             raise ValueError("No events found in event log")
@@ -56,18 +62,29 @@ class ExecutionFingerprintGenerator:
         if not app_start:
             raise ValueError("Missing SparkListenerApplicationStart event")
 
+        logger.info(f"[FINGERPRINT] Starting fingerprint generation for {len(self.events)} events")
+
         # Generate each layer
-        print("Generating semantic layer...")
+        logger.info("[FINGERPRINT] === Layer 1/3: SEMANTIC ===")
+        logger.info("[FINGERPRINT] Extracting query structure, DAG, and execution plan...")
+        layer_start = time.time()
         semantic_gen = SemanticFingerprintGenerator(self.event_log_path)
         semantic = semantic_gen.generate()
+        logger.info(f"[FINGERPRINT] Semantic layer complete: {semantic.dag.total_stages} stages ({time.time() - layer_start:.2f}s)")
 
-        print("Generating context layer...")
+        logger.info("[FINGERPRINT] === Layer 2/3: CONTEXT ===")
+        logger.info("[FINGERPRINT] Extracting Spark config, executor settings, optimizations...")
+        layer_start = time.time()
         context_gen = ContextFingerprintGenerator(self.event_log_path)
         context = context_gen.generate()
+        logger.info(f"[FINGERPRINT] Context layer complete: {context.executor_config.total_executors} executors, {context.spark_config.spark_version} ({time.time() - layer_start:.2f}s)")
 
-        print("Generating metrics layer...")
+        logger.info("[FINGERPRINT] === Layer 3/3: METRICS ===")
+        logger.info("[FINGERPRINT] Computing task metrics, detecting anomalies...")
+        layer_start = time.time()
         metrics_gen = MetricsFingerprintGenerator(self.index)
         metrics = metrics_gen.generate()
+        logger.info(f"[FINGERPRINT] Metrics layer complete: {metrics.execution_summary.total_tasks} tasks, {len(metrics.anomalies)} anomalies ({time.time() - layer_start:.2f}s)")
 
         # Create metadata
         event_log_size = Path(self.event_log_path).stat().st_size if Path(self.event_log_path).exists() else 0
@@ -85,9 +102,15 @@ class ExecutionFingerprintGenerator:
 
         # Determine execution class
         execution_class = self._classify_execution(metrics)
+        logger.info(f"[FINGERPRINT] Execution classified as: {execution_class}")
 
         # Generate analysis hints
         analysis_hints = self._generate_analysis_hints(semantic, context, metrics)
+        if analysis_hints:
+            logger.info(f"[FINGERPRINT] Generated {len(analysis_hints)} analysis hints for LLM")
+        
+        total_time = time.time() - total_start
+        logger.info(f"[FINGERPRINT] Fingerprint generation complete in {total_time:.2f}s")
 
         return ExecutionFingerprint(
             metadata=metadata,
@@ -186,13 +209,14 @@ def generate_fingerprint(
     from src.formatter import FingerprintFormatter
 
     # Generate fingerprint
-    print(f"Parsing event log: {event_log_path}")
+    logger.info(f"[GENERATE] Starting fingerprint generation from: {event_log_path}")
     gen = ExecutionFingerprintGenerator(event_log_path)
     fingerprint = gen.generate()
 
     # Save output if requested
     if output_path:
-        print(f"Saving {output_format} output: {output_path}")
+        logger.info(f"[GENERATE] Saving fingerprint to: {output_path}")
+        logger.info(f"[GENERATE] Format: {output_format}, Detail level: {detail_level}")
         if output_format == "json":
             FingerprintFormatter.save_json(
                 fingerprint,

@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -47,6 +48,12 @@ def print_section(title: str):
     print(f"\n{'='*70}")
     print(f"  {title}")
     print('='*70)
+
+
+def print_step(step_num: int, total_steps: int, description: str):
+    """Print a numbered step indicator."""
+    print(f"\n  [{step_num}/{total_steps}] {description}")
+    logger.info(f"Step {step_num}/{total_steps}: {description}")
 
 
 def print_response(response: AgentResponse):

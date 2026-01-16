@@ -4,8 +4,11 @@ Metrics Layer Generator
 Collects task/stage metrics, computes statistics, detects anomalies.
 """
 
+import logging
 import statistics
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from src.schemas import (
     AnomalyEvent,
@@ -35,23 +38,40 @@ class MetricsFingerprintGenerator:
         Returns:
             MetricsFingerprint with execution summary, stage metrics, and anomalies
         """
+        logger.info("[METRICS] Collecting task-level metrics from TaskEnd events...")
         # Collect task metrics
         task_metrics = self._collect_task_metrics()
+        logger.info(f"[METRICS] Collected metrics for {len(task_metrics)} tasks")
 
+        logger.info("[METRICS] Computing execution summary...")
         # Compute execution summary
         exec_summary = self._compute_execution_summary(task_metrics)
+        logger.info(f"[METRICS] Duration: {exec_summary.total_duration_ms}ms, Failed: {exec_summary.failed_task_count}, Spill: {exec_summary.total_spill_bytes:,} bytes")
 
+        logger.info("[METRICS] Computing per-stage metrics...")
         # Compute per-stage metrics
         stage_metrics = self._compute_stage_metrics(task_metrics)
+        logger.info(f"[METRICS] Computed metrics for {len(stage_metrics)} stages")
 
+        logger.info("[METRICS] Computing task distribution statistics...")
         # Compute task distribution
         task_dist = self._compute_task_distribution(task_metrics)
 
+        logger.info("[METRICS] Running anomaly detection...")
         # Detect anomalies
         anomalies = self._detect_anomalies(task_metrics, stage_metrics)
+        if anomalies:
+            logger.warning(f"[METRICS] Detected {len(anomalies)} anomalies:")
+            for anomaly in anomalies:
+                logger.warning(f"[METRICS]   - [{anomaly.severity.upper()}] {anomaly.anomaly_type}: {anomaly.description[:60]}")
+        else:
+            logger.info("[METRICS] No anomalies detected")
 
+        logger.info("[METRICS] Computing KPIs...")
         # Compute KPIs
         kpis = self._compute_kpis(exec_summary, task_metrics)
+        for kpi_name, kpi_value in kpis.items():
+            logger.info(f"[METRICS]   - {kpi_name}: {kpi_value:.2f}")
 
         # Generate description
         description = self._generate_description(exec_summary, anomalies)

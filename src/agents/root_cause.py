@@ -88,6 +88,7 @@ class RootCauseAgent(BaseAgent):
     async def analyze(
         self, 
         fingerprint_data: Dict[str, Any],
+        context: Optional[Any] = None,
         focus_areas: Optional[List[str]] = None,
         **kwargs
     ) -> AgentResponse:
@@ -96,40 +97,59 @@ class RootCauseAgent(BaseAgent):
         
         Args:
             fingerprint_data: Full fingerprint or metrics layer
+            context: Optional AgentContext for coordinated analysis
             focus_areas: Optional list of areas to focus on (e.g., ["spill", "skew"])
             
         Returns:
             AgentResponse with root cause analysis
         """
-        logger.info(f"Starting root cause analysis (focus_areas={focus_areas})")
+        logger.info(f"[RCA] === Starting Root Cause Analysis ===")
+        if focus_areas:
+            logger.info(f"[RCA] Focus areas: {', '.join(focus_areas)}")
         start_time = time.time()
         
         try:
             # Extract relevant data
+            logger.info("[RCA] Step 1/4: Extracting metrics and context from fingerprint...")
             metrics = self._extract_metrics(fingerprint_data)
             context = self._extract_context(fingerprint_data)
             
             if not metrics:
-                logger.error("No metrics data found in fingerprint")
+                logger.error("[RCA] No metrics data found in fingerprint")
                 return self._create_error_response("No metrics data found in fingerprint")
             
+            # Log execution summary
+            exec_summary = metrics.get("execution_summary", {})
+            logger.info(f"[RCA] Execution summary:")
+            logger.info(f"[RCA]   - Total tasks: {exec_summary.get('total_tasks', 0)}")
+            logger.info(f"[RCA]   - Failed tasks: {exec_summary.get('failed_task_count', 0)}")
+            logger.info(f"[RCA]   - Total spill: {exec_summary.get('total_spill_bytes', 0):,} bytes")
+            logger.info(f"[RCA]   - Total shuffle: {exec_summary.get('total_shuffle_bytes', 0):,} bytes")
+            
             anomalies = metrics.get("anomalies", [])
-            logger.info(f"Found {len(anomalies)} anomalies in metrics layer")
-            for a in anomalies:
-                logger.debug(f"  Anomaly: [{a.get('severity')}] {a.get('anomaly_type')}: {a.get('description')}")
+            logger.info(f"[RCA] Step 2/4: Analyzing {len(anomalies)} detected anomalies...")
+            for i, a in enumerate(anomalies, 1):
+                logger.info(f"[RCA]   Anomaly {i}: [{a.get('severity', 'unknown').upper()}] {a.get('anomaly_type')}: {a.get('description', '')[:50]}")
             
             # Build context for LLM
+            logger.info("[RCA] Step 3/4: Building analysis context for LLM...")
             analysis_context = self._build_context(metrics, context, focus_areas)
-            logger.debug(f"Built analysis context with keys: {list(analysis_context.keys())}")
+            logger.info(f"[RCA] Context includes: {', '.join(analysis_context.keys())}")
             
             # Call LLM for interpretation
             user_prompt = self._build_user_prompt(analysis_context)
-            logger.info(f"Calling LLM with {len(user_prompt)} char prompt")
+            logger.info(f"[RCA] Step 4/4: Calling LLM for root cause interpretation...")
             llm_response = await self._call_llm(ROOT_CAUSE_PROMPT, user_prompt)
             
             # Parse response into structured format
+            logger.info("[RCA] Parsing LLM response into structured findings...")
             response = self._parse_llm_response(llm_response, start_time, analysis_context)
-            logger.info(f"Root cause analysis complete: {len(response.key_findings)} findings")
+            
+            elapsed = time.time() - start_time
+            logger.info(f"[RCA] === Analysis Complete ===")
+            logger.info(f"[RCA] Total time: {elapsed:.2f}s")
+            logger.info(f"[RCA] Findings: {len(response.key_findings)}")
+            logger.info(f"[RCA] Confidence: {response.confidence:.0%}")
             return response
             
         except Exception as e:
