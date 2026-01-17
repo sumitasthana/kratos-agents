@@ -16,6 +16,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
+# Import for type hints only - avoid circular import
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from src.agent_coordination import AgentContext
+
 logger = logging.getLogger(__name__)
 
 
@@ -121,12 +126,20 @@ class BaseAgent(ABC):
         pass
     
     @abstractmethod
-    async def analyze(self, fingerprint_data: Dict[str, Any], **kwargs) -> AgentResponse:
+    async def analyze(
+        self, 
+        fingerprint_data: Dict[str, Any], 
+        context: Optional["AgentContext"] = None,
+        **kwargs
+    ) -> AgentResponse:
         """
         Perform analysis on fingerprint data.
         
         Args:
             fingerprint_data: Full or partial fingerprint as dict
+            context: Optional AgentContext for coordinated analysis.
+                     When provided, agent can access previous findings and
+                     share its own findings with other agents.
             **kwargs: Agent-specific parameters
             
         Returns:
@@ -134,10 +147,42 @@ class BaseAgent(ABC):
         """
         pass
     
+    def _enrich_prompt_with_context(self, base_prompt: str, context: Optional["AgentContext"]) -> str:
+        """
+        Enrich a prompt with context from previous agents.
+        
+        Args:
+            base_prompt: The original prompt
+            context: Optional agent context with previous findings
+            
+        Returns:
+            Enriched prompt including previous findings if available
+        """
+        if not context:
+            return base_prompt
+        
+        findings_summary = context.get_findings_summary()
+        focus_areas = context.get_focus_areas()
+        
+        enrichment = []
+        
+        if findings_summary and findings_summary != "No previous findings.":
+            enrichment.append(f"\n\n--- Previous Agent Findings ---\n{findings_summary}")
+        
+        if focus_areas:
+            enrichment.append(f"\n\n--- Focus Areas ---\nPay special attention to: {', '.join(focus_areas)}")
+        
+        if enrichment:
+            logger.info(f"[AGENT] Enriching prompt with context from {len(context.get_findings())} previous findings")
+            return base_prompt + "".join(enrichment)
+        
+        return base_prompt
+    
     def _get_llm(self) -> ChatOpenAI:
         """Get LangChain LLM instance."""
         if self._llm is None:
-            logger.debug(f"Initializing LLM: provider={self.llm_config.provider}, model={self.llm_config.model}")
+            logger.info(f"[LLM] Initializing {self.llm_config.provider} client...")
+            logger.info(f"[LLM] Model: {self.llm_config.model}, Temperature: {self.llm_config.temperature}, Max tokens: {self.llm_config.max_tokens}")
             if self.llm_config.provider == "openai":
                 self._llm = ChatOpenAI(
                     model=self.llm_config.model,
@@ -153,7 +198,7 @@ class BaseAgent(ABC):
                 )
             else:
                 raise ValueError(f"Unsupported LLM provider: {self.llm_config.provider}")
-            logger.info(f"LLM initialized: {self.llm_config.model}")
+            logger.info(f"[LLM] Client ready")
         return self._llm
     
     def _create_chain(self, system_prompt: str):
@@ -177,11 +222,21 @@ class BaseAgent(ABC):
         Returns:
             LLM response text
         """
-        logger.info(f"Calling LLM with prompt ({len(user_prompt)} chars)")
-        logger.debug(f"User prompt preview: {user_prompt[:200]}...")
+        import time
+        logger.info(f"[LLM] Preparing request...")
+        logger.info(f"[LLM] System prompt: {len(system_prompt)} chars")
+        logger.info(f"[LLM] User prompt: {len(user_prompt)} chars")
+        logger.info(f"[LLM] Total context: ~{(len(system_prompt) + len(user_prompt)) // 4} tokens (estimated)")
+        
         chain = self._create_chain(system_prompt)
+        
+        logger.info(f"[LLM] Sending request to {self.llm_config.model}...")
+        start_time = time.time()
         response = await chain.ainvoke({"input": user_prompt})
-        logger.info(f"LLM response received ({len(response)} chars)")
+        elapsed = time.time() - start_time
+        
+        logger.info(f"[LLM] Response received in {elapsed:.2f}s")
+        logger.info(f"[LLM] Response length: {len(response)} chars (~{len(response) // 4} tokens)")
         return response
     
     def _create_error_response(self, error: str) -> AgentResponse:

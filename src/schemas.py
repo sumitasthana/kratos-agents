@@ -418,3 +418,64 @@ class SimilarityReport(BaseModel):
     )
     regression_detected: bool = Field(...)
     analysis: str = Field(..., description="Natural language analysis of comparison")
+
+
+# ============================================================================
+# ORCHESTRATION LAYER: Problem Classification and Agent Coordination
+# ============================================================================
+
+
+class ProblemType(str, Enum):
+    """Classification of user problem types for agent routing."""
+    
+    PERFORMANCE = "performance"  # Slow queries, resource issues, optimization
+    LINEAGE = "lineage"          # Data flow, transformations, query understanding
+    GENERAL = "general"          # General questions, mixed concerns
+
+
+class AgentTask(BaseModel):
+    """A task assigned to an agent by the orchestrator."""
+    
+    agent_type: str = Field(..., description="Type of agent to execute this task")
+    task_description: str = Field(..., description="What the agent should analyze")
+    priority: int = Field(default=1, description="Execution priority (1=highest)")
+    depends_on: List[str] = Field(default_factory=list, description="Agent types this task depends on")
+    focus_areas: List[str] = Field(default_factory=list, description="Specific areas to focus on")
+
+
+class AgentFinding(BaseModel):
+    """A single finding from an agent's analysis."""
+    
+    agent_type: str = Field(..., description="Agent that produced this finding")
+    finding_type: str = Field(..., description="Category of finding")
+    severity: str = Field(default="info", description="Severity: critical, high, medium, low, info")
+    title: str = Field(..., description="Brief title of the finding")
+    description: str = Field(..., description="Detailed description")
+    recommendation: Optional[str] = Field(None, description="Suggested action")
+    evidence: List[str] = Field(default_factory=list, description="Supporting evidence")
+
+
+class AnalysisResult(BaseModel):
+    """Synthesized result from orchestrated agent analysis."""
+    
+    problem_type: ProblemType = Field(..., description="Classified problem type")
+    user_query: str = Field(..., description="Original user query")
+    
+    # Synthesis
+    executive_summary: str = Field(..., description="High-level summary for executives")
+    detailed_analysis: str = Field(..., description="Full technical analysis")
+    
+    # Structured findings
+    findings: List[AgentFinding] = Field(default_factory=list, description="All findings from agents")
+    recommendations: List[str] = Field(default_factory=list, description="Prioritized recommendations")
+    
+    # Agent coordination metadata
+    agents_used: List[str] = Field(default_factory=list, description="Agents that contributed")
+    agent_sequence: List[str] = Field(default_factory=list, description="Order agents were executed")
+    
+    # Metrics
+    total_processing_time_ms: int = Field(default=0, description="Total orchestration time")
+    confidence: float = Field(default=0.0, description="Overall confidence score")
+    
+    # Raw agent responses for debugging
+    raw_agent_responses: Dict[str, Any] = Field(default_factory=dict, description="Raw responses from each agent")

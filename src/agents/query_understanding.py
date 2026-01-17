@@ -74,6 +74,7 @@ class QueryUnderstandingAgent(BaseAgent):
     async def analyze(
         self, 
         fingerprint_data: Dict[str, Any],
+        context: Optional[Any] = None,
         include_dag: bool = True,
         include_plan: bool = True,
         **kwargs
@@ -83,6 +84,7 @@ class QueryUnderstandingAgent(BaseAgent):
         
         Args:
             fingerprint_data: Full fingerprint or just semantic layer
+            context: Optional AgentContext for coordinated analysis
             include_dag: Whether to include DAG analysis
             include_plan: Whether to include physical plan analysis
             

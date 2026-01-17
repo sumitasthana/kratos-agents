@@ -6,9 +6,12 @@ Preserves causality and timing for LLM analysis.
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class SparkEvent:
@@ -60,7 +63,13 @@ class EventLogParser:
         if not self.log_path.exists():
             raise FileNotFoundError(f"Event log not found: {self.log_path}")
 
+        # Get file size for progress reporting
+        file_size = self.log_path.stat().st_size
+        logger.info(f"[PARSE] Opening event log: {self.log_path.name} ({file_size:,} bytes)")
+        
         event_index = 0
+        event_type_counts: Dict[str, int] = {}
+        
         try:
             with open(self.log_path, "r", encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
@@ -72,21 +81,39 @@ class EventLogParser:
                         event_dict = json.loads(line)
                         event = SparkEvent(event_dict, event_index, str(self.log_path))
                         self.events.append(event)
+                        
+                        # Track event type counts
+                        event_type_counts[event.event_type] = event_type_counts.get(event.event_type, 0) + 1
 
                         # Extract metadata from first event (ApplicationStart)
                         if event.event_type == "SparkListenerApplicationStart" and not self.metadata:
                             self._extract_app_metadata(event)
+                            logger.info(f"[PARSE] Found application: {self.metadata.get('app_name')} (ID: {self.metadata.get('app_id')})")
+                            logger.info(f"[PARSE] Spark version: {self.metadata.get('spark_version')}")
 
                         event_index += 1
 
                     except json.JSONDecodeError as e:
                         self._parse_errors.append((line_num, f"JSON parse error: {str(e)}"))
+                        logger.warning(f"[PARSE] JSON parse error at line {line_num}: {str(e)[:50]}")
 
         except Exception as e:
             self._parse_errors.append((0, f"File read error: {str(e)}"))
+            logger.error(f"[PARSE] File read error: {str(e)}")
 
         self.metadata["total_events"] = len(self.events)
         self.metadata["parse_errors"] = len(self._parse_errors)
+        
+        # Log parsing summary
+        logger.info(f"[PARSE] Parsed {len(self.events)} events from {line_num} lines")
+        logger.info(f"[PARSE] Event breakdown:")
+        for event_type, count in sorted(event_type_counts.items(), key=lambda x: -x[1])[:8]:
+            logger.info(f"[PARSE]   - {event_type}: {count}")
+        if len(event_type_counts) > 8:
+            logger.info(f"[PARSE]   ... and {len(event_type_counts) - 8} more event types")
+        
+        if self._parse_errors:
+            logger.warning(f"[PARSE] Encountered {len(self._parse_errors)} parse errors")
 
         return self.events, self.metadata
 
@@ -164,7 +191,9 @@ class EventIndex:
 
     def __init__(self, events: List[SparkEvent]):
         self.events = events
+        logger.info(f"[INDEX] Building search indices for {len(events)} events...")
         self._build_indices()
+        logger.info(f"[INDEX] Indexed {len(self.by_type)} event types, {len(self.by_stage_id)} stages, {len(self.by_task_id)} tasks")
 
     def _build_indices(self) -> None:
         """Build lookup indices."""
