@@ -13,6 +13,7 @@ Agents:
 """
 
 from .base import BaseAgent, AgentResponse, LLMConfig, AgentType
+from .git_diff_dataflow import GitDiffDataFlowAgent
 from .query_understanding import QueryUnderstandingAgent
 from .root_cause import RootCauseAgent
 
@@ -21,6 +22,7 @@ __all__ = [
     "AgentResponse",
     "LLMConfig",
     "AgentType",
+    "GitDiffDataFlowAgent",
     "QueryUnderstandingAgent",
     "RootCauseAgent",
 ]

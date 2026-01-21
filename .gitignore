@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.log
+
+# Virtual environments
+venv/
+.venv/
+
+# Test caches
+.pytest_cache/
+
+# Local env
+.env
+
+# Generated outputs
+fingerprints/
+git_artifacts/
+
+# Local cloned repos (for demos)
+cloned_repos/
+
+# Vendored git-log-extractor generated outputs
+/git-log-extractor/extracted_lineage.json
+/git-log-extractor/extractor.log
+/git-log-extractor/gex-accel/
+/git-log-extractor/.venv/
