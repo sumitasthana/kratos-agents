@@ -5,11 +5,14 @@ All specialized agents inherit from BaseAgent and use LangChain/LangGraph.
 """
 
 import logging
+from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, TypedDict
 from enum import Enum
 from pydantic import BaseModel, Field
 from datetime import datetime
+
+from dotenv import load_dotenv
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -23,11 +26,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_DOTENV_LOADED = False
+
 
 class AgentType(str, Enum):
     """Types of analysis agents."""
     QUERY_UNDERSTANDING = "query_understanding"
     ROOT_CAUSE = "root_cause"
+    GIT_DIFF_DATAFLOW = "git_diff_dataflow"
     OPTIMIZATION = "optimization"
     REGRESSION = "regression"
     ORCHESTRATOR = "orchestrator"
@@ -181,6 +187,11 @@ class BaseAgent(ABC):
     def _get_llm(self) -> ChatOpenAI:
         """Get LangChain LLM instance."""
         if self._llm is None:
+            global _DOTENV_LOADED
+            if not _DOTENV_LOADED:
+                repo_root = Path(__file__).resolve().parents[2]
+                load_dotenv(repo_root / ".env", override=False)
+                _DOTENV_LOADED = True
             logger.info(f"[LLM] Initializing {self.llm_config.provider} client...")
             logger.info(f"[LLM] Model: {self.llm_config.model}, Temperature: {self.llm_config.temperature}, Max tokens: {self.llm_config.max_tokens}")
             if self.llm_config.provider == "openai":

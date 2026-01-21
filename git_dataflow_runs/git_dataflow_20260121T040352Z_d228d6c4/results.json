@@ -1,0 +1,227 @@
+{
+  "results": [
+    {
+      "file_path": "api/main.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff does not contain any data flow patterns such as reads, writes, joins, or transformations."
+        ]
+      }
+    },
+    {
+      "file_path": "core/__init__.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines"
+        ]
+      }
+    },
+    {
+      "file_path": "core/gex_generator.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff only contains comments/docstrings about generating Great Expectations configurations, with no actual data flow logic shown."
+        ]
+      }
+    },
+    {
+      "file_path": "core/gex_mapper.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff contains a regex pattern for SQL queries but does not show actual data reads or writes."
+        ]
+      }
+    },
+    {
+      "file_path": "core/parameter_extractor.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff contains a regex pattern for extracting column names from a SQL SELECT statement.",
+          "No concrete data sources or sinks are mentioned in the diff."
+        ]
+      }
+    },
+    {
+      "file_path": "core/sql_analyzer.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [
+          {
+            "type": "sql_join",
+            "keys": [],
+            "evidence": "join(sql_query.split())\n        # Remove semicolons at end\n        sql_query = sql_query.rstrip(';')\n        # Normalize to uppercase keywords (for pattern matching)\n        formatted = sqlparse.forma"
+          }
+        ],
+        "transformations": [],
+        "notes": [
+          "The diff shows logic related to parsing SQL keywords like SELECT and FROM, but no specific data sources or transformations are evident."
+        ]
+      }
+    },
+    {
+      "file_path": "main.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff does not contain any data flow patterns related to reads, writes, joins, or transformations."
+        ]
+      }
+    },
+    {
+      "file_path": "schemas/table_definitions.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff does not provide enough information to extract specific data flow patterns."
+        ]
+      }
+    },
+    {
+      "file_path": "templates/gex_templates.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines"
+        ]
+      }
+    },
+    {
+      "file_path": "tests/sample_queries.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [
+          {
+            "source": "account_feature_store",
+            "evidence": "SELECT customer_id, COUNT(*) FROM account_feature_store GROUP BY customer_id HAVING COUNT(*) > 1;"
+          }
+        ],
+        "writes": [],
+        "joins": [],
+        "transformations": [
+          {
+            "type": "aggregation/groupBy",
+            "details": "GROUP BY customer_id HAVING COUNT(*) > 1",
+            "evidence": "SELECT customer_id, COUNT(*) FROM account_feature_store GROUP BY customer_id HAVING COUNT(*) > 1;"
+          },
+          {
+            "type": "filter",
+            "details": "WHERE customer_id IS NULL OR account_reference IS NULL OR primary_holder_id IS NULL",
+            "evidence": "SELECT * FROM account_feature_store WHERE customer_id IS NULL OR account_reference IS NULL OR primary_holder_id IS NULL;"
+          }
+        ],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines"
+        ]
+      }
+    },
+    {
+      "file_path": "tests/test_conversion.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff only contains a comment addition and does not introduce or modify any data flow patterns."
+        ]
+      }
+    },
+    {
+      "file_path": "utils/llm_client.py",
+      "commit_hash": "90a13f5752799cde6b506179293588d86cad1679",
+      "author": "ByteFarmer",
+      "date": "2025-08-04T13:54:21-04:00",
+      "message": "Add files via upload",
+      "dataflow": {
+        "reads": [],
+        "writes": [],
+        "joins": [],
+        "transformations": [],
+        "notes": [
+          "No dataflow patterns detected by heuristics in added lines",
+          "The diff does not contain any concrete data flow patterns such as reads, writes, joins, or transformations. The changes seem to be related to documentation or comments about SQL analysis and validation expectations."
+        ]
+      }
+    }
+  ]
+}

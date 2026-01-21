@@ -6,6 +6,7 @@ pytest>=7.0
 pytest-cov>=4.0
 pytest-asyncio>=0.23
 python-dotenv>=1.0
+pydriller
 langchain>=0.3
 langchain-openai>=0.2
 langchain-anthropic>=0.2
