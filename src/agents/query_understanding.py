@@ -70,6 +70,30 @@ class QueryUnderstandingAgent(BaseAgent):
     @property
     def system_prompt(self) -> str:
         return QUERY_UNDERSTANDING_PROMPT
+
+    def plan(
+        self,
+        fingerprint_data: Dict[str, Any],
+        context: Optional[Any] = None,
+        include_dag: bool = True,
+        include_plan: bool = True,
+        **kwargs
+    ) -> List[str]:
+        steps = [
+            "Extract semantic layer (DAG + plan metadata)",
+        ]
+        if include_dag:
+            steps.append("Summarize execution DAG (stages, edges, shuffles)")
+        if include_plan:
+            steps.append("Include physical/logical plan details if present")
+        steps.extend(
+            [
+                "Build LLM prompt from extracted context",
+                "Call LLM to generate a plain-English explanation",
+                "Parse response into summary + key findings",
+            ]
+        )
+        return steps
     
     async def analyze(
         self, 

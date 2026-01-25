@@ -11,25 +11,26 @@ from .base import BaseAgent, AgentResponse, AgentType
 logger = logging.getLogger(__name__)
 
 
+# 1. ENHANCED PROMPT: Explicitly allows code/config as data sources
 GIT_DIFF_DATAFLOW_PROMPT = """You are a senior data engineer.
 
 You will be given git diffs (unified diff format) for code changes. Your job is to extract *data flow patterns* introduced or modified by the change.
 
 Data flow patterns to extract:
-- reads: sources of data (tables, files, APIs) being read
-- writes: sinks of data (tables, files, APIs) being written
-- joins: join operations and join keys if available
-- transformations: filters, projections/selects, aggregations/groupBy, unions, sorts, window functions, mapping/UDFs
+- reads: sources of data (tables, files, APIs) being read. **INCLUDE: Raw code files (if processed as input), SQL files, and Schema definitions.**
+- writes: sinks of data (tables, files, APIs) being written. **INCLUDE: Generated configuration files (JSON/YAML), Data Quality Suites, and Reports.**
+- joins: join operations and join keys if available.
+- transformations: filters, projections/selects, aggregations/groupBy, unions, sorts, window functions, mapping/UDFs.
 
 Important:
-- Ignore *Python imports* (e.g., `from typing import ...`) and other library/module references. These are not data reads.
-- Only treat SQL `FROM/JOIN/INSERT` as dataflow when it is part of an actual SQL query string or SQL statement, not Python `from ... import ...`.
+- Ignore *standard Python imports* (e.g., `from typing import ...`) unless they represent a data dependency (e.g., importing a specific Schema definition).
+- Treat logic flow (reading a SQL string -> parsing it -> writing a JSON) as a valid dataflow.
 - Prefer concrete artifacts: table names, file paths, formats, catalog/db.schema.table identifiers.
 
 Also classify the change from a banking/data perspective:
-- intent_categories: choose zero or more from (feature_engineering, validation, reconciliation, audit_trail, remediation, transformation, aggregation, masking, archival)
-- process_name: a short phrase like "account risk scoring" or "sanctions screening" or "KYC refresh"
-- data_domains: choose zero or more from (accounts, customers, transactions, limits, collateral, regulatory_reporting)
+- intent_categories: choose zero or more from (feature_engineering, validation, reconciliation, audit_trail, remediation, transformation, aggregation, masking, archival, metadata_management)
+- process_name: a short phrase like "account risk scoring" or "SQL to GEX conversion"
+- data_domains: choose zero or more from (accounts, customers, transactions, limits, collateral, regulatory_reporting, data_governance)
 
 Return STRICT JSON ONLY (no markdown) with this schema:
 {{
@@ -81,6 +82,25 @@ class GitDiffDataFlowAgent(BaseAgent):
     @property
     def system_prompt(self) -> str:
         return GIT_DIFF_DATAFLOW_PROMPT
+
+    def plan(
+        self,
+        fingerprint_data: Dict[str, Any],
+        context: Optional[Any] = None,
+        max_commits: int = 25,
+        max_chars_per_diff: int = 8000,
+        always_use_llm: bool = True,
+        **kwargs,
+    ) -> List[str]:
+        mode = "LLM" if always_use_llm else "heuristic"
+        return [
+            "Validate git_artifacts payload (files + commits + diffs)",
+            f"Iterate commits (max_commits={max_commits}) and truncate diffs (max_chars_per_diff={max_chars_per_diff})",
+            "Run heuristic extraction (reads/writes/joins/transformations)",
+            f"Optionally enrich with {mode} extraction on relevant diff chunks",
+            "Merge heuristic + LLM signals into a single dataflow result",
+            "Summarize counts and write JSON output",
+        ]
 
     async def analyze(
         self,
@@ -210,33 +230,37 @@ class GitDiffDataFlowAgent(BaseAgent):
         return diff[:max_chars] + "\n... [truncated]"
 
     def _is_relevant_file(self, file_path: str) -> bool:
-        # Skip obviously non-source/binary artifacts that create lots of noise in diffs.
+        # [LOGGING] Cool log added
+        logger.info(f"Thinking if this file is relevant or not: {file_path}")
+        
         lowered = file_path.lower()
+        include_docs = bool(getattr(self, "include_docs", False))
+        if not include_docs and lowered.endswith((
+            ".md", ".rst", ".txt",
+        )):
+            return False
         if lowered.endswith((
-            ".pyc",
-            ".pyo",
-            ".class",
-            ".jar",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".svg",
-            ".ico",
+            ".pyc", ".pyo", ".class", ".jar", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
         )):
             return False
         return True
 
     def _extract_relevant_diff_text(self, diff: str) -> str:
-        """Reduce diff to lines most likely to carry dataflow signal."""
+        """
+        Reduce diff to lines most likely to carry dataflow signal.
+        UPDATED: Now preserves Python structure (classes/defs) to capture logic-as-data pipelines.
+        """
         kept: List[str] = []
         for raw in diff.splitlines():
+            # Skip diff headers
             if raw.startswith("+++ ") or raw.startswith("--- ") or raw.startswith("diff --git") or raw.startswith("index "):
                 continue
             if raw.startswith("@@"):
                 continue
+            # Must be an added/removed line
             if not (raw.startswith("+") or raw.startswith("-")):
                 continue
+            # Skip double markers
             if raw.startswith("+++") or raw.startswith("---"):
                 continue
 
@@ -244,20 +268,36 @@ class GitDiffDataFlowAgent(BaseAgent):
             if not line:
                 continue
 
-            # Filter out Python import noise unless it contains explicit data access patterns.
+            # 1. Allow Python Structure (The Fix): 
+            # Capture defs, classes, returns, and control flow to see the "Logic Pipeline"
+            if re.search(r"^\s*(def |class |return |if |else|elif |with open|try:|except:)", line):
+                kept.append(raw)
+                continue
+
+            # 2. Allow Variable Assignments that might contain data/SQL
+            if re.search(r"=\s*(\"\"\"|'''|\"|')", line): # String assignments
+                kept.append(raw)
+                continue
+
+            # 3. Filter out noise imports, but keep Schema/Config imports
             if (line.startswith("from ") or line.startswith("import ")):
-                if "spark" not in line and "SELECT" not in line and "select" not in line:
+                # Keep imports if they look like schema or config references
+                if not any(k in line.lower() for k in ["schema", "config", "definition", "spark", "select"]):
                     continue
 
-            # Keep only lines that have reasonable chance of describing dataflow.
-            if not re.search(
+            # 4. Standard Heuristic for SQL/Spark (Original Logic)
+            if re.search(
                 r"spark\.|\.read\.|\.write\.|\.saveAsTable\(|\.save\(|\.load\(|\.join\(|\.groupBy\(|\.agg\(|\.filter\(|\.where\(|\bselect\b|\bfrom\b|\bjoin\b|\binsert\b|\bmerge\b|\bcreate\b",
                 line,
                 flags=re.IGNORECASE,
             ):
+                kept.append(raw)
                 continue
-
-            kept.append(raw)
+                
+            # 5. Catch Orchestration Keywords (New)
+            if re.search(r"\b(pipeline|convert|transform|map|analyze)\b", line, flags=re.IGNORECASE):
+                kept.append(raw)
+                continue
 
         return "\n".join(kept)
 
@@ -283,6 +323,9 @@ class GitDiffDataFlowAgent(BaseAgent):
             return iter(())
 
     def _safe_search(self, pattern: str, text: str, flags: int = 0):
+        # [LOGGING] Cool log added
+        logger.debug(f"Searching for the text: pattern='{pattern[:20]}...'")
+        
         try:
             return re.search(pattern, text, flags=flags)
         except re.error as e:
@@ -290,6 +333,9 @@ class GitDiffDataFlowAgent(BaseAgent):
             return None
 
     def _extract_patterns_from_diff(self, diff: str) -> DiffDataFlow:
+        # [LOGGING] Cool log added
+        logger.info("Finding patterns in Git diff")
+
         # Only consider added lines for heuristics, but filter out obvious noise.
         lines = [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
         lines = [ln for ln in lines if ln.strip() and not ln.lstrip().startswith(("from ", "import "))]
@@ -297,7 +343,7 @@ class GitDiffDataFlowAgent(BaseAgent):
 
         flow = DiffDataFlow()
 
-        # Lightweight intent/domain classification (heuristic fallback).
+        # Lightweight intent/domain classification.
         intent, process_name, domains = self._heuristic_intent_and_domain(diff)
         flow.intent_categories = intent
         flow.process_name = process_name
@@ -310,10 +356,12 @@ class GitDiffDataFlowAgent(BaseAgent):
             (r"\bspark\.table\(\s*['\"]([^'\"]+)['\"]", "spark.table"),
             (r"\bread\.format\(\s*['\"]([^'\"]+)['\"]\)\.load\(\s*['\"]([^'\"]+)['\"]", "read.format.load"),
             (r"\bLOAD\s+DATA\s+INPATH\s+['\"]([^'\"]+)['\"]", "hive_load"),
+            # New: Capture open() calls for file reading
+            (r"\bopen\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]r['\"]", "file_read"),
         ]
         for pat, kind in read_patterns:
             for m in self._safe_finditer(pat, added, flags=re.IGNORECASE):
-                src = m.group(2) if kind == "read.format.load" else m.group(1)
+                src = m.group(1)
                 flow.reads.append({"source": src, "evidence": m.group(0)[:200]})
 
         # Writes
@@ -323,13 +371,16 @@ class GitDiffDataFlowAgent(BaseAgent):
             (r"\bwrite\.saveAsTable\(\s*['\"]([^'\"]+)['\"]", "saveAsTable"),
             (r"\bINSERT\s+INTO\s+([a-zA-Z0-9_\.]+)", "sql_insert"),
             (r"\bCREATE\s+TABLE\s+([a-zA-Z0-9_\.]+)", "sql_create_table"),
+            # New: Capture json.dump for config writing
+            (r"\bjson\.dump\(\s*.*,\s*f\s*\)", "json_file_write"),
         ]
         for pat, kind in write_patterns:
             for m in self._safe_finditer(pat, added, flags=re.IGNORECASE):
-                sink = m.group(1)
+                # For json.dump we might not have a clean sink name in the regex, so we handle loosely
+                sink = m.group(1) if len(m.groups()) > 0 else "json_output"
                 flow.writes.append({"sink": sink, "evidence": m.group(0)[:200]})
 
-        # Joins
+        # Joins (Existing logic)
         for m in self._safe_finditer(r"\b\.join\(", added):
             snippet = added[m.start() : m.start() + 300]
             keys = []
@@ -364,7 +415,6 @@ class GitDiffDataFlowAgent(BaseAgent):
         ]
         for pat, ttype in transform_map:
             if self._safe_search(pat, added):
-                # capture a small snippet around first match
                 m = self._safe_search(pat, added)
                 snippet = added[m.start() : m.start() + 220] if m else pat
                 flow.transformations.append({"type": ttype, "details": "", "evidence": snippet[:200]})
@@ -395,6 +445,8 @@ class GitDiffDataFlowAgent(BaseAgent):
             "aggregation": ["groupby", "group by", "agg(", "aggregate", "rollup", "summary"],
             "masking": ["mask", "redact", "tokenize", "hash", "encrypt", "pii"],
             "archival": ["archive", "retention", "purge", "cold storage"],
+            # NEW: Metadata Management
+            "metadata_management": ["generator", "template", "schema", "config", "json", "yaml", "convert", "mapper"],
         }
 
         domain_keywords = {
@@ -404,6 +456,8 @@ class GitDiffDataFlowAgent(BaseAgent):
             "limits": ["limit", "exposure", "threshold"],
             "collateral": ["collateral", "security", "lien"],
             "regulatory_reporting": ["regulatory", "reporting", "basel", "ccar", "sox", "aml", "ofac"],
+            # NEW: Data Governance
+            "data_governance": ["quality", "lineage", "catalog", "policy", "standard", "great expectations", "gex"],
         }
 
         for intent, kws in intent_keywords.items():
@@ -414,15 +468,16 @@ class GitDiffDataFlowAgent(BaseAgent):
             if any(kw in text for kw in kws):
                 domain_hits.append(dom)
 
-        # Very small process-name guess
+        # Process name guessing
         if "sanction" in text or "ofac" in text or "aml" in text:
             process_name = "sanctions screening"
         elif "kyc" in text:
             process_name = "KYC refresh"
         elif "risk" in text and "score" in text:
             process_name = "account risk scoring"
+        elif "generator" in text and "config" in text:
+            process_name = "configuration generation"
 
-        # Dedupe while preserving order
         def _dedupe(xs: List[str]) -> List[str]:
             seen = set()
             out: List[str] = []
@@ -449,6 +504,8 @@ class GitDiffDataFlowAgent(BaseAgent):
     def _should_call_llm(self, heuristic: DiffDataFlow, diff: str) -> bool:
         # LLM is valuable when diffs contain SQL strings or non-trivial pipeline code.
         # We call LLM when there is some signal in the diff and/or heuristics are uncertain.
+        
+        # 1. Base length check (keep existing)
         if len(diff) <= 200:
             return False
 
@@ -456,7 +513,15 @@ class GitDiffDataFlowAgent(BaseAgent):
         if len(relevant) <= 120:
             return False
 
-        # If heuristics already found strong sources/sinks, we still allow LLM to enrich joins/transformations.
+        # 2. [NEW] Trigger for Orchestration/Pipeline Logic
+        # This ensures files like "main.py" or "etl.py" get analyzed even if they don't have SQL
+        if re.search(r"(import|from)\s+.*\b(pipeline|orchestration|flow|etl|converter|mapper|generator)\b", diff, re.IGNORECASE):
+            return True
+        
+        # 3. [NEW] Trigger for Schema/Config Definitions
+        if re.search(r"class\s+\w+(Schema|Definition|Config)\b", diff):
+            return True
+
         return True
 
     async def _llm_extract_json_async(self, file_path: str, commit: Dict[str, Any], diff: str) -> DiffDataFlow:
@@ -476,7 +541,6 @@ class GitDiffDataFlowAgent(BaseAgent):
         try:
             parsed = json.loads(raw)
         except Exception:
-            # try to salvage JSON substring
             start = raw.find("{")
             end = raw.rfind("}")
             if start >= 0 and end > start:
@@ -486,6 +550,7 @@ class GitDiffDataFlowAgent(BaseAgent):
 
         flow = DiffDataFlow()
 
+        # Added new allowed values for metadata pipeline support
         allowed_intents = {
             "feature_engineering",
             "validation",
@@ -496,6 +561,7 @@ class GitDiffDataFlowAgent(BaseAgent):
             "aggregation",
             "masking",
             "archival",
+            "metadata_management", # New
         }
         allowed_domains = {
             "accounts",
@@ -504,6 +570,7 @@ class GitDiffDataFlowAgent(BaseAgent):
             "limits",
             "collateral",
             "regulatory_reporting",
+            "data_governance", # New
         }
 
         intents = [i for i in (parsed.get("intent_categories") or []) if isinstance(i, str)]
@@ -558,7 +625,6 @@ class GitDiffDataFlowAgent(BaseAgent):
             transformations=a.transformations + b.transformations,
             notes=a.notes + b.notes,
         )
-        # Dedupe simple string lists
         out.intent_categories = list(dict.fromkeys([x for x in out.intent_categories if x]))
         out.data_domains = list(dict.fromkeys([x for x in out.data_domains if x]))
         out.reads = self._dedupe_dict_list(out.reads, "source")
@@ -612,7 +678,6 @@ class GitDiffDataFlowAgent(BaseAgent):
 
 
 # Patch LLM usage: override _extract_from_git_artifacts to use async LLM when enabled
-# (kept here to avoid calling async from sync context)
 async def _extract_from_git_artifacts_with_llm(
     agent: GitDiffDataFlowAgent,
     payload: Dict[str, Any],
@@ -654,15 +719,17 @@ async def _extract_from_git_artifacts_with_llm(
             # Heuristic pass (fast, deterministic)
             heuristic = agent._extract_patterns_from_diff(diff)
 
+            # NOTE: Logic Updated in _extract_relevant_diff_text to include Python structure
             relevant = agent._extract_relevant_diff_text(diff)
             llm_chunks = agent._chunk_text(relevant, max_chars=min(max_chars_per_diff, 5000)) if relevant else []
 
+            # NOTE: Logic Updated in _should_call_llm to trigger on Pipeline code
             use_llm = always_use_llm or agent._should_call_llm(heuristic, diff)
+            
             if use_llm and llm_chunks:
                 logger.info(f"[GIT_DIFF_DATAFLOW]   LLM enabled: {len(llm_chunks)} chunk(s)")
                 llm_merged = DiffDataFlow()
                 for idx, chunk in enumerate(llm_chunks, start=1):
-                    # Feed only the filtered chunk to reduce noise and token usage.
                     logger.info(f"[GIT_DIFF_DATAFLOW]    Processing chunk {idx}/{len(llm_chunks)} ({len(chunk)} chars)")
                     llm_flow = await agent._llm_extract_json_async(file_path, c, chunk)
                     llm_merged = agent._merge_flows(llm_merged, llm_flow)

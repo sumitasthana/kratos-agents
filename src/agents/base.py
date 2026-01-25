@@ -112,6 +112,20 @@ class BaseAgent(ABC):
     def agent_type(self) -> AgentType:
         """Return the type of this agent."""
         pass
+
+    def plan(
+        self,
+        fingerprint_data: Dict[str, Any],
+        context: Optional["AgentContext"] = None,
+        **kwargs
+    ) -> List[str]:
+        return [
+            f"Agent: {self.agent_name}",
+            "Validate input payload and extract the relevant layer(s)",
+            "Build an analysis context/prompt", 
+            "Run analysis (may call LLM depending on mode)",
+            "Return a structured AgentResponse",
+        ]
     
     @property
     @abstractmethod
