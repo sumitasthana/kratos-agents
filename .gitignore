@@ -14,9 +14,6 @@ venv/
 .env
 
 # Generated outputs
-fingerprints/
-git_artifacts/
-
 git_dataflow_runs/
 orchestrator_runs/
 runs/

@@ -25,7 +25,7 @@ from src.schemas import ExecutionFingerprint
 
 def _default_fingerprint_output_path(event_log_path: Path) -> str:
     repo_root = Path(__file__).resolve().parents[1]
-    output_dir = repo_root / "fingerprints"
+    output_dir = repo_root / "runs" / "fingerprints"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -60,7 +60,7 @@ def _default_clone_target_dir(base_dir: Path, repo_url: str) -> Path:
 
 def _default_git_artifacts_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    base_dir = repo_root / "git_artifacts"
+    base_dir = repo_root / "runs" / "git_artifacts"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 
@@ -120,7 +120,7 @@ def main():
         fp.add_argument(
             "--output",
             "-o",
-            help="Output file path (default: auto-named in fingerprints/)",
+            help="Output file path (default: auto-named in runs/fingerprints/)",
             default=None,
         )
         fp.add_argument(
@@ -165,7 +165,7 @@ def main():
         gl.add_argument(
             "--output",
             "-o",
-            help="Output file path (default: auto-named in git_artifacts/)",
+            help="Output file path (default: auto-named in runs/git_artifacts/)",
             default=None,
         )
 
@@ -239,7 +239,7 @@ def main():
             "--output",
             "-o",
             default=None,
-            help="Optional output filename (saved under orchestrator_runs/)",
+            help="Optional output filename (saved under runs/orchestrator/)",
         )
 
         args = parser.parse_args()
@@ -442,7 +442,7 @@ def main():
     parser.add_argument(
         "--output",
         "-o",
-        help="Output file path (default: auto-named in fingerprints/)",
+        help="Output file path (default: auto-named in runs/fingerprints/)",
         default=None,
     )
 
