@@ -26,8 +26,16 @@ Important:
 - Only treat SQL `FROM/JOIN/INSERT` as dataflow when it is part of an actual SQL query string or SQL statement, not Python `from ... import ...`.
 - Prefer concrete artifacts: table names, file paths, formats, catalog/db.schema.table identifiers.
 
+Also classify the change from a banking/data perspective:
+- intent_categories: choose zero or more from (feature_engineering, validation, reconciliation, audit_trail, remediation, transformation, aggregation, masking, archival)
+- process_name: a short phrase like "account risk scoring" or "sanctions screening" or "KYC refresh"
+- data_domains: choose zero or more from (accounts, customers, transactions, limits, collateral, regulatory_reporting)
+
 Return STRICT JSON ONLY (no markdown) with this schema:
 {{
+  "intent_categories": ["feature_engineering"],
+  "process_name": "account risk scoring",
+  "data_domains": ["accounts", "transactions"],
   "reads": [{{"source": "...", "evidence": "..."}}],
   "writes": [{{"sink": "...", "evidence": "..."}}],
   "joins": [{{"type": "...", "keys": ["..."], "evidence": "..."}}],
@@ -44,6 +52,9 @@ Rules:
 
 @dataclass
 class DiffDataFlow:
+    intent_categories: List[str] = field(default_factory=list)
+    process_name: str = ""
+    data_domains: List[str] = field(default_factory=list)
     reads: List[Dict[str, str]] = field(default_factory=list)
     writes: List[Dict[str, str]] = field(default_factory=list)
     joins: List[Dict[str, Any]] = field(default_factory=list)
@@ -286,6 +297,12 @@ class GitDiffDataFlowAgent(BaseAgent):
 
         flow = DiffDataFlow()
 
+        # Lightweight intent/domain classification (heuristic fallback).
+        intent, process_name, domains = self._heuristic_intent_and_domain(diff)
+        flow.intent_categories = intent
+        flow.process_name = process_name
+        flow.data_domains = domains
+
         # Reads
         read_patterns = [
             (r"\bspark\.read\.\w+\(\s*['\"]([^'\"]+)['\"]", "spark.read"),
@@ -361,6 +378,63 @@ class GitDiffDataFlowAgent(BaseAgent):
 
         return flow
 
+    def _heuristic_intent_and_domain(self, diff: str) -> tuple[List[str], str, List[str]]:
+        text = diff.lower()
+
+        intent_hits: List[str] = []
+        domain_hits: List[str] = []
+        process_name = ""
+
+        intent_keywords = {
+            "feature_engineering": ["feature", "feature store", "embedding", "vector", "risk score", "scoring"],
+            "validation": ["validate", "validation", "assert", "expectation", "great expectations", "dq", "data quality"],
+            "reconciliation": ["reconcile", "reconciliation", "balance", "tie out", "tie-out"],
+            "audit_trail": ["audit", "audit trail", "lineage", "provenance"],
+            "remediation": ["remed", "backfill", "fixup", "hotfix", "repair"],
+            "transformation": ["transform", "normalize", "standardize", "mapping", "udf"],
+            "aggregation": ["groupby", "group by", "agg(", "aggregate", "rollup", "summary"],
+            "masking": ["mask", "redact", "tokenize", "hash", "encrypt", "pii"],
+            "archival": ["archive", "retention", "purge", "cold storage"],
+        }
+
+        domain_keywords = {
+            "accounts": ["account", "acct", "iban"],
+            "customers": ["customer", "client", "kyc", "cif"],
+            "transactions": ["transaction", "txn", "payment", "transfer", "posting"],
+            "limits": ["limit", "exposure", "threshold"],
+            "collateral": ["collateral", "security", "lien"],
+            "regulatory_reporting": ["regulatory", "reporting", "basel", "ccar", "sox", "aml", "ofac"],
+        }
+
+        for intent, kws in intent_keywords.items():
+            if any(kw in text for kw in kws):
+                intent_hits.append(intent)
+
+        for dom, kws in domain_keywords.items():
+            if any(kw in text for kw in kws):
+                domain_hits.append(dom)
+
+        # Very small process-name guess
+        if "sanction" in text or "ofac" in text or "aml" in text:
+            process_name = "sanctions screening"
+        elif "kyc" in text:
+            process_name = "KYC refresh"
+        elif "risk" in text and "score" in text:
+            process_name = "account risk scoring"
+
+        # Dedupe while preserving order
+        def _dedupe(xs: List[str]) -> List[str]:
+            seen = set()
+            out: List[str] = []
+            for x in xs:
+                if x in seen:
+                    continue
+                seen.add(x)
+                out.append(x)
+            return out
+
+        return _dedupe(intent_hits), process_name, _dedupe(domain_hits)
+
     def _dedupe_dict_list(self, items: List[Dict[str, Any]], key: str) -> List[Dict[str, Any]]:
         seen = set()
         out = []
@@ -411,6 +485,37 @@ class GitDiffDataFlowAgent(BaseAgent):
                 raise
 
         flow = DiffDataFlow()
+
+        allowed_intents = {
+            "feature_engineering",
+            "validation",
+            "reconciliation",
+            "audit_trail",
+            "remediation",
+            "transformation",
+            "aggregation",
+            "masking",
+            "archival",
+        }
+        allowed_domains = {
+            "accounts",
+            "customers",
+            "transactions",
+            "limits",
+            "collateral",
+            "regulatory_reporting",
+        }
+
+        intents = [i for i in (parsed.get("intent_categories") or []) if isinstance(i, str)]
+        flow.intent_categories = [i for i in intents if i in allowed_intents]
+
+        pn = parsed.get("process_name")
+        if isinstance(pn, str):
+            flow.process_name = pn.strip()[:120]
+
+        domains = [d for d in (parsed.get("data_domains") or []) if isinstance(d, str)]
+        flow.data_domains = [d for d in domains if d in allowed_domains]
+
         for r in parsed.get("reads", []) or []:
             if r.get("source"):
                 flow.reads.append({"source": r.get("source"), "evidence": r.get("evidence", "")})
@@ -444,12 +549,18 @@ class GitDiffDataFlowAgent(BaseAgent):
 
     def _merge_flows(self, a: DiffDataFlow, b: DiffDataFlow) -> DiffDataFlow:
         out = DiffDataFlow(
+            intent_categories=a.intent_categories + b.intent_categories,
+            process_name=a.process_name or b.process_name,
+            data_domains=a.data_domains + b.data_domains,
             reads=a.reads + b.reads,
             writes=a.writes + b.writes,
             joins=a.joins + b.joins,
             transformations=a.transformations + b.transformations,
             notes=a.notes + b.notes,
         )
+        # Dedupe simple string lists
+        out.intent_categories = list(dict.fromkeys([x for x in out.intent_categories if x]))
+        out.data_domains = list(dict.fromkeys([x for x in out.data_domains if x]))
         out.reads = self._dedupe_dict_list(out.reads, "source")
         out.writes = self._dedupe_dict_list(out.writes, "sink")
         out.transformations = self._dedupe_dict_list(out.transformations, "type")
@@ -460,10 +571,22 @@ class GitDiffDataFlowAgent(BaseAgent):
         writes = set()
         joins = 0
         transforms = 0
+        intents = set()
+        domains = set()
+        process_names = set()
 
         for item in flows:
             df = item.get("dataflow")
             if isinstance(df, dict):
+                for ic in df.get("intent_categories", []) or []:
+                    if isinstance(ic, str) and ic:
+                        intents.add(ic)
+                for dd in df.get("data_domains", []) or []:
+                    if isinstance(dd, str) and dd:
+                        domains.add(dd)
+                pn = df.get("process_name")
+                if isinstance(pn, str) and pn.strip():
+                    process_names.add(pn.strip())
                 for r in df.get("reads", []) or []:
                     if r.get("source"):
                         reads.add(r["source"])
@@ -475,6 +598,9 @@ class GitDiffDataFlowAgent(BaseAgent):
 
         summary = f"Extracted dataflow patterns from {len(flows)} commit diff(s)."
         key_findings = [
+            f"Intent categories detected: {len(intents)}",
+            f"Data domains detected: {len(domains)}",
+            f"Process names inferred: {len(process_names)}",
             f"Reads detected: {len(reads)}",
             f"Writes detected: {len(writes)}",
             f"Joins detected: {joins}",

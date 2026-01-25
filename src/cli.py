@@ -9,14 +9,18 @@ Usage:
 import argparse
 import asyncio
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from src.fingerprint import generate_fingerprint
 from src.git_log_extractor import extract_git_log_artifacts
 from src.agents.git_diff_dataflow import GitDiffDataFlowAgent
+from src.orchestrator import SmartOrchestrator
+from src.schemas import ExecutionFingerprint
 
 
 def _default_fingerprint_output_path(event_log_path: Path) -> str:
@@ -28,6 +32,44 @@ def _default_fingerprint_output_path(event_log_path: Path) -> str:
     run_id = uuid4().hex[:8]
     stem = event_log_path.stem
     return str(output_dir / f"fingerprint_{stem}_{timestamp}_{run_id}.json")
+
+
+def _default_cloned_repos_dir() -> Path:
+    repo_root = Path(__file__).resolve().parents[1]
+    base_dir = repo_root / "cloned_repos"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _repo_name_from_url(repo_url: str) -> str:
+    # Best-effort to create a readable folder name.
+    parsed = urlparse(repo_url)
+    path = parsed.path.strip("/")
+    name = path.split("/")[-1] if path else "repo"
+    if name.lower().endswith(".git"):
+        name = name[:-4]
+    return name or "repo"
+
+
+def _default_clone_target_dir(base_dir: Path, repo_url: str) -> Path:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = uuid4().hex[:8]
+    repo_name = _repo_name_from_url(repo_url)
+    return base_dir / f"{repo_name}_{timestamp}_{run_id}"
+
+
+def _default_git_artifacts_dir() -> Path:
+    repo_root = Path(__file__).resolve().parents[1]
+    base_dir = repo_root / "git_artifacts"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _default_git_artifacts_output_path(base_dir: Path, repo_path: str) -> Path:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = uuid4().hex[:8]
+    repo_name = Path(repo_path).resolve().name
+    return base_dir / f"git_artifacts_{repo_name}_{timestamp}_{run_id}.json"
 
 
 def _default_git_dataflow_run_dir() -> Path:
@@ -44,9 +86,22 @@ def _default_git_dataflow_output_path(base_dir: Path) -> Path:
     return base_dir / f"git_dataflow_{timestamp}_{run_id}.json"
 
 
+def _default_orchestrator_output_dir() -> Path:
+    repo_root = Path(__file__).resolve().parents[1]
+    base_dir = repo_root / "orchestrator_runs"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _default_orchestrator_output_path(base_dir: Path) -> Path:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = uuid4().hex[:8]
+    return base_dir / f"orchestrator_{timestamp}_{run_id}.json"
+
+
 def main():
     """Parse arguments and generate fingerprint."""
-    known_commands = {"fingerprint", "git-log", "git-dataflow"}
+    known_commands = {"fingerprint", "git-clone", "git-log", "git-dataflow", "orchestrate"}
     use_subcommands = len(sys.argv) > 1 and sys.argv[1] in known_commands
 
     if use_subcommands:
@@ -110,8 +165,22 @@ def main():
         gl.add_argument(
             "--output",
             "-o",
-            help="Output file path (default: auto-named in current directory)",
+            help="Output file path (default: auto-named in git_artifacts/)",
             default=None,
+        )
+
+        gc = subparsers.add_parser(
+            "git-clone", description="Clone a remote git repo into cloned_repos/"
+        )
+        gc.add_argument(
+            "repo_url",
+            help="Remote git URL (e.g. https://github.com/org/repo.git)",
+        )
+        gc.add_argument(
+            "--dest",
+            "-d",
+            default=None,
+            help="Optional destination folder name under cloned_repos/",
         )
 
         gd = subparsers.add_parser(
@@ -146,21 +215,85 @@ def main():
             help="Optional output file path to write the JSON result",
         )
 
+        orch = subparsers.add_parser(
+            "orchestrate", description="Run SmartOrchestrator (Query Understanding + Root Cause) on a fingerprint with a natural language question"
+        )
+        orch.add_argument(
+            "--fingerprint",
+            "-f",
+            default=None,
+            help="Path to an existing fingerprint_*.json",
+        )
+        orch.add_argument(
+            "--from-log",
+            default=None,
+            help="Path to Spark event log (will generate fingerprint first)",
+        )
+        orch.add_argument(
+            "--query",
+            "-q",
+            required=True,
+            help="Question to ask the orchestrator (e.g. 'Why is my Spark job slow?')",
+        )
+        orch.add_argument(
+            "--output",
+            "-o",
+            default=None,
+            help="Optional output filename (saved under orchestrator_runs/)",
+        )
+
         args = parser.parse_args()
 
         if args.command == "git-log":
             try:
                 extensions = args.extensions.split(",") if args.extensions else None
                 keywords = args.keywords.split(",") if args.keywords else None
+
+                output_path = args.output
+                if output_path is None:
+                    out_dir = _default_git_artifacts_dir()
+                    output_path = str(_default_git_artifacts_output_path(out_dir, args.repo_path))
+
                 output_file = extract_git_log_artifacts(
                     args.repo_path,
                     extensions=extensions,
                     keywords=keywords,
-                    output_path=args.output,
+                    output_path=output_path,
                 )
                 print("Git log artifacts extracted successfully")
                 print(f"  Output: {output_file}")
                 return 0
+            except Exception as e:
+                print(f"Error: {str(e)}", file=sys.stderr)
+                return 1
+
+        if args.command == "git-clone":
+            try:
+                base_dir = _default_cloned_repos_dir()
+                target_dir = base_dir / args.dest if args.dest else _default_clone_target_dir(base_dir, args.repo_url)
+
+                print("[git-clone] Cloning...")
+                print(f"[git-clone] Repo: {args.repo_url}")
+                print(f"[git-clone] Dest: {target_dir}")
+
+                if target_dir.exists() and any(target_dir.iterdir()):
+                    print(f"Error: Destination is not empty: {target_dir}", file=sys.stderr)
+                    return 1
+
+                target_dir.parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(
+                    ["git", "clone", args.repo_url, str(target_dir)],
+                    check=True,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+
+                print("[git-clone] Done")
+                print(f"[git-clone] Local path: {target_dir}")
+                return 0
+            except subprocess.CalledProcessError as e:
+                print(f"Error: git clone failed ({e})", file=sys.stderr)
+                return 1
             except Exception as e:
                 print(f"Error: {str(e)}", file=sys.stderr)
                 return 1
@@ -217,6 +350,56 @@ def main():
                 output_path.write_text(response.explanation, encoding="utf-8")
                 print(f"[git-dataflow] Wrote: {output_path}")
                 print(f"[git-dataflow] Source: {input_path}")
+                return 0
+            except Exception as e:
+                print(f"Error: {str(e)}", file=sys.stderr)
+                return 1
+
+        if args.command == "orchestrate":
+            try:
+                print("[orchestrate] Starting orchestrator...")
+
+                if (args.fingerprint is None) == (args.from_log is None):
+                    print(
+                        "Provide exactly one of --fingerprint or --from-log",
+                        file=sys.stderr,
+                    )
+                    return 1
+
+                if args.fingerprint:
+                    fp_path = Path(args.fingerprint)
+                    if not fp_path.exists():
+                        print(f"Error: Fingerprint not found: {fp_path}", file=sys.stderr)
+                        return 1
+                    print(f"[orchestrate] Loading fingerprint: {fp_path}")
+                    fp_payload = json.loads(fp_path.read_text(encoding="utf-8"))
+                    fingerprint = ExecutionFingerprint.model_validate(fp_payload)
+                else:
+                    event_log_path = Path(args.from_log)
+                    if not event_log_path.exists():
+                        print(f"Error: Event log not found: {event_log_path}", file=sys.stderr)
+                        return 1
+                    fp_out = _default_fingerprint_output_path(event_log_path)
+                    print(f"[orchestrate] Generating fingerprint from log: {event_log_path}")
+                    fingerprint = generate_fingerprint(
+                        str(event_log_path),
+                        output_format="json",
+                        output_path=fp_out,
+                        include_evidence=True,
+                        detail_level="balanced",
+                    )
+                    print(f"[orchestrate] Fingerprint written: {fp_out}")
+
+                out_dir = _default_orchestrator_output_dir()
+                out_path = _default_orchestrator_output_path(out_dir)
+                if args.output:
+                    out_path = out_dir / Path(args.output).name
+
+                print(f"[orchestrate] Query: {args.query}")
+                result = asyncio.run(SmartOrchestrator(fingerprint).solve_problem(args.query))
+                out_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
+
+                print(f"[orchestrate] Wrote: {out_path}")
                 return 0
             except Exception as e:
                 print(f"Error: {str(e)}", file=sys.stderr)
