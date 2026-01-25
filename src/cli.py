@@ -24,7 +24,7 @@ def _default_fingerprint_output_path(event_log_path: Path) -> str:
     output_dir = repo_root / "fingerprints"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_id = uuid4().hex[:8]
     stem = event_log_path.stem
     return str(output_dir / f"fingerprint_{stem}_{timestamp}_{run_id}.json")
