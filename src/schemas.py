@@ -348,7 +348,7 @@ class ExecutionFingerprint(BaseModel):
         Returns:
             Dictionary suitable for JSON serialization and LLM consumption
         """
-        result = self.dict()
+        result = self.model_dump()
 
         if not include_evidence:
             # Strip evidence references for conciseness
