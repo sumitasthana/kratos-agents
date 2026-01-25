@@ -17,6 +17,12 @@ venv/
 fingerprints/
 git_artifacts/
 
+git_dataflow_runs/
+orchestrator_runs/
+runs/
+
+demo_script.txt
+
 # Local cloned repos (for demos)
 cloned_repos/
 

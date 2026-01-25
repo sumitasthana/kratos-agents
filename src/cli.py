@@ -36,7 +36,7 @@ def _default_fingerprint_output_path(event_log_path: Path) -> str:
 
 def _default_cloned_repos_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    base_dir = repo_root / "cloned_repos"
+    base_dir = repo_root / "runs" / "cloned_repos"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 
@@ -74,7 +74,7 @@ def _default_git_artifacts_output_path(base_dir: Path, repo_path: str) -> Path:
 
 def _default_git_dataflow_run_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    base_dir = repo_root / "git_dataflow_runs"
+    base_dir = repo_root / "runs" / "git_dataflow"
     base_dir.mkdir(parents=True, exist_ok=True)
 
     return base_dir
@@ -88,7 +88,7 @@ def _default_git_dataflow_output_path(base_dir: Path) -> Path:
 
 def _default_orchestrator_output_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    base_dir = repo_root / "orchestrator_runs"
+    base_dir = repo_root / "runs" / "orchestrator"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 
