@@ -47,7 +47,7 @@ def generate_fingerprint(
 from src import generate_fingerprint
 
 fp = generate_fingerprint(
-    "data/event_logs.json",
+    "/path/to/event_logs.json",
     output_format="json",
     output_path="fingerprint.json",
     detail_level="balanced"
@@ -865,33 +865,43 @@ print(f"Tasks: {len(task_events)}")
 ### Command-Line Interface
 
 ```bash
-python -m src.cli EVENT_LOG_PATH [OPTIONS]
+python -m src.cli <command> [args] [options]
 ```
 
-**Arguments:**
-- `EVENT_LOG_PATH`: Path to Spark event log
+**Commands:**
+- `fingerprint EVENT_LOG_PATH`: Generate Spark execution fingerprint
+- `orchestrate (--fingerprint FP.json | --from-log EVENT_LOG.json) --query "..."`: Run SmartOrchestrator analysis
+- `git-clone REPO_URL [--dest NAME]`: Clone a remote repo under `runs/cloned_repos/`
+- `git-log REPO_PATH [--output PATH]`: Extract commit + diff artifacts into `git_artifacts_*.json`
+- `git-dataflow (--input PATH | --latest --dir DIR) [--llm] [--include-docs]`: Extract dataflow patterns from git artifacts
 
-**Options:**
-- `-o, --output PATH`: Output file path
-- `-f, --format {json,yaml,markdown}`: Output format (default: json)
-- `-l, --level {summary,balanced,detailed}`: Detail level (default: balanced)
-- `--no-evidence`: Exclude evidence sources
-- `--help`: Show help
+Run `python -m src.cli <command> --help` for command-specific options.
 
 **Examples:**
 
 ```bash
 # Generate JSON fingerprint
-python -m src.cli data/event_log.json
+python -m src.cli fingerprint /path/to/event_log.json
 
 # Generate Markdown report
-python -m src.cli data/event_log.json --format markdown --output report.md
+python -m src.cli fingerprint /path/to/event_log.json --format markdown --output report.md
 
 # Generate detailed summary
-python -m src.cli data/event_log.json --format json --level detailed --output fp_detailed.json
+python -m src.cli fingerprint /path/to/event_log.json --format json --level detailed --output fp_detailed.json
 
 # Without evidence (smaller output)
-python -m src.cli data/event_log.json --no-evidence
+python -m src.cli fingerprint /path/to/event_log.json --no-evidence
+
+# Orchestrated analysis (generates fingerprint first)
+python -m src.cli orchestrate --from-log /path/to/event_log.json --query "Why is my Spark job slow?"
+
+# Git workflow: clone -> extract artifacts -> git-dataflow
+python -m src.cli git-clone https://github.com/Byte-Farmer/kratos-v1.git --dest kratos-v1
+python -m src.cli git-log .\runs\cloned_repos\kratos-v1
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm
+
+# Optional: include documentation files (README.md, etc.) in dataflow extraction
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm --include-docs
 ```
 
 ---

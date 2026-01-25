@@ -38,14 +38,17 @@ print(fingerprint.metrics.execution_summary.total_duration_ms)
 ### From Command Line
 
 ```bash
-# Generate JSON fingerprint
-python -m src.cli /path/to/event_log.json -o fingerprint.json
+# Generate JSON fingerprint (default output: runs/fingerprints/)
+python -m src.cli fingerprint /path/to/event_log.json
 
 # Generate markdown with summary detail level
-python -m src.cli /path/to/event_log.json --format markdown --level summary
+python -m src.cli fingerprint /path/to/event_log.json --format markdown --level summary
 
 # Exclude evidence linking for conciseness
-python -m src.cli /path/to/event_log.json --no-evidence
+python -m src.cli fingerprint /path/to/event_log.json --no-evidence
+
+# Optional: write to an explicit output path
+python -m src.cli fingerprint /path/to/event_log.json --output fingerprint.json
 ```
 
 ## Analyze with AI Agents
@@ -128,15 +131,19 @@ asyncio.run(analyze_issues())
 ### Full End-to-End Demo
 
 ```bash
-# Run complete demo with both agents
-python demo.py --from-log data/event_logs_rca.json
+# Run complete analysis (generates fingerprint first)
+python -m src.cli orchestrate --from-log /path/to/event_log.json --query "Why is my Spark job slow?"
 
-# Or with only specific agent
-python demo.py --agent query-understanding
-python demo.py --agent root-cause
+# Or run from an existing fingerprint
+python -m src.cli orchestrate --fingerprint /path/to/fingerprint.json --query "Explain what this query does"
 
-# Rule-based analysis without LLM (no API key needed)
-python demo.py --no-llm
+# Git workflow: clone -> extract git_artifacts -> git-dataflow
+python -m src.cli git-clone https://github.com/Byte-Farmer/kratos-v1.git --dest kratos-v1
+python -m src.cli git-log .\runs\cloned_repos\kratos-v1
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm
+
+# Optional: include docs (README.md, etc.) in git-dataflow
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm --include-docs
 ```
 
 ## Output Formats
@@ -175,7 +182,7 @@ Human-readable report with sections for each layer:
 
 Alternative structured format:
 ```bash
-python -m src.cli /path/to/event_log.json --format yaml
+python -m src.cli fingerprint /path/to/event_log.json --format yaml
 ```
 
 ## Understanding the Fingerprint
@@ -282,7 +289,7 @@ from src import generate_fingerprint
 from datetime import datetime
 
 # Process all event logs in a directory
-log_dir = Path("data/event_logs")
+log_dir = Path("runs/spark_event_logs")
 for log_file in log_dir.glob("*.json"):
     print(f"Processing {log_file.name}...")
     
@@ -307,7 +314,7 @@ for log_file in log_dir.glob("*.json"):
 ```python
 from tests.generate_sample_log import generate_sample_event_log
 
-generate_sample_event_log("data/sample.json", num_stages=5, tasks_per_stage=100)
+generate_sample_event_log("runs/spark_event_logs/sample.json", num_stages=5, tasks_per_stage=100)
 ```
 
 ### Run Tests

@@ -41,11 +41,11 @@ OPENAI_API_KEY=your-api-key-here
 ### Step 3: Run the Demo
 
 ```bash
-# Ask a question about your Spark job
-python demo_agentic.py "Why is my Spark job slow?"
+# Ask a question about your Spark job (generates a fingerprint first)
+python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my Spark job slow?"
 
-# Or use your own event log
-python demo_agentic.py --from-log your_event_log.json "What went wrong?"
+# Or generate a fingerprint only
+python -m src.cli fingerprint your_event_log.json
 ```
 
 ---
@@ -98,25 +98,29 @@ python demo_agentic.py --from-log your_event_log.json "What went wrong?"
 Ask a question in plain English. The system automatically picks the right agents and coordinates their analysis:
 
 ```bash
-python demo_agentic.py "Why is my job failing?"
-python demo_agentic.py "Explain what this query does"
-python demo_agentic.py "What are the performance bottlenecks?"
+python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my job failing?"
+python -m src.cli orchestrate --from-log your_event_log.json --query "Explain what this query does"
+python -m src.cli orchestrate --from-log your_event_log.json --query "What are the performance bottlenecks?"
 ```
 
 ### 2. Individual Agents
 
-Run specific agents directly for targeted analysis:
+Run specific pipeline steps directly for targeted workflows:
 
 ```bash
-# Just explain the query
-python demo.py --agent query
+# Generate a fingerprint
+python -m src.cli fingerprint your_event_log.json
 
-# Just analyze performance issues  
-python demo.py --agent root-cause
+# Run dataflow extraction from a Git repo diff history
+python -m src.cli git-clone https://github.com/Byte-Farmer/kratos-v1.git --dest kratos-v1
+python -m src.cli git-log .\runs\cloned_repos\kratos-v1
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm
 
-# Run both
-python demo.py --from-log data/event_logs_rca.json
+# Optional: include documentation files (README.md, etc.) in dataflow extraction
+python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm --include-docs
 ```
+
+During `orchestrate` and `git-dataflow`, the tool prints each agent's planned steps to the console before execution.
 
 ---
 
@@ -165,8 +169,6 @@ python demo.py --from-log data/event_logs_rca.json
 ## Project Structure
 
 ```
-├── demo_agentic.py          # 🚀 Main entry point - ask questions here
-├── demo.py                  # Run individual agents
 ├── src/
 │   ├── orchestrator.py      # Smart agent coordination
 │   ├── agent_coordination.py # Agent communication system
@@ -175,8 +177,13 @@ python demo.py --from-log data/event_logs_rca.json
 │   └── agents/
 │       ├── query_understanding.py  # Explains queries
 │       └── root_cause.py           # Finds problems
-├── data/
-│   └── event_logs_rca.json  # Sample event log for testing
+├── runs/                    # Generated outputs (ignored by git)
+│   ├── spark_event_logs/    # Example/sample Spark event logs
+│   ├── fingerprints/        # fingerprint_*.json
+│   ├── orchestrator/        # orchestrator_*.json
+│   ├── cloned_repos/        # Local clones for git-log extraction
+│   ├── git_artifacts/       # git_artifacts_*.json (from git-log)
+│   └── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
 └── requirements.txt         # Python dependencies
 ```
 
