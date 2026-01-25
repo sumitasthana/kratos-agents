@@ -209,6 +209,11 @@ def main():
             help="Use LLM mode (requires provider API key env vars)",
         )
         gd.add_argument(
+            "--include-docs",
+            action="store_true",
+            help="Include documentation files (e.g., README.md) in dataflow extraction (default: excluded)",
+        )
+        gd.add_argument(
             "--output",
             "-o",
             default=None,
@@ -332,6 +337,7 @@ def main():
                 print(f"[git-dataflow] Loading artifacts: {input_path}")
                 payload = json.loads(input_path.read_text(encoding="utf-8"))
                 agent = GitDiffDataFlowAgent()
+                agent.include_docs = bool(getattr(args, "include_docs", False))
 
                 try:
                     plan_steps = agent.plan(payload, always_use_llm=bool(args.llm))

@@ -234,6 +234,11 @@ class GitDiffDataFlowAgent(BaseAgent):
         logger.info(f"Thinking if this file is relevant or not: {file_path}")
         
         lowered = file_path.lower()
+        include_docs = bool(getattr(self, "include_docs", False))
+        if not include_docs and lowered.endswith((
+            ".md", ".rst", ".txt",
+        )):
+            return False
         if lowered.endswith((
             ".pyc", ".pyo", ".class", ".jar", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
         )):
