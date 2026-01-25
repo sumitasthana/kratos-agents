@@ -84,6 +84,28 @@ class RootCauseAgent(BaseAgent):
     @property
     def system_prompt(self) -> str:
         return ROOT_CAUSE_PROMPT
+
+    def plan(
+        self,
+        fingerprint_data: Dict[str, Any],
+        context: Optional[Any] = None,
+        focus_areas: Optional[List[str]] = None,
+        **kwargs
+    ) -> List[str]:
+        steps = [
+            "Extract metrics + execution summary from fingerprint",
+            "Scan anomalies (failures, spills, skew, shuffle, executor loss)",
+        ]
+        if focus_areas:
+            steps.append(f"Apply focus areas: {', '.join(focus_areas)}")
+        steps.extend(
+            [
+                "Build root-cause context (metrics + correlations)",
+                "Call LLM to propose root causes + mitigations",
+                "Parse response into prioritized findings",
+            ]
+        )
+        return steps
     
     async def analyze(
         self, 

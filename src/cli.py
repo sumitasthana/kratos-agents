@@ -333,6 +333,15 @@ def main():
                 payload = json.loads(input_path.read_text(encoding="utf-8"))
                 agent = GitDiffDataFlowAgent()
 
+                try:
+                    plan_steps = agent.plan(payload, always_use_llm=bool(args.llm))
+                    if plan_steps:
+                        print(f"[plan] {agent.agent_name}")
+                        for step in plan_steps:
+                            print(f"[plan] - {step}")
+                except Exception:
+                    pass
+
                 if args.llm:
                     print("[git-dataflow] Mode: LLM")
                     response = asyncio.run(agent.analyze(payload))

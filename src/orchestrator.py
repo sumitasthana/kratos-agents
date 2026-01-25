@@ -329,6 +329,15 @@ class SmartOrchestrator:
             kwargs = {}
             if task.focus_areas:
                 kwargs["focus_areas"] = task.focus_areas
+
+            try:
+                plan_steps = agent.plan(self.fingerprint_dict, context=context, **kwargs)
+                if plan_steps:
+                    print(f"[plan] {agent.agent_name}")
+                    for step in plan_steps:
+                        print(f"[plan] - {step}")
+            except Exception:
+                pass
             
             # Execute agent with context
             response = await agent.analyze(
