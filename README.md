@@ -129,6 +129,8 @@ python -m src.cli lineage-extract --folder .\scripts\multi
 python -m src.cli lineage-extract --folder .\scripts\multi --trace-table customers --trace-column customer_id --trace-direction upstream
 ```
 
+`lineage-extract` writes a lineage JSON artifact to `runs/lineage/lineage_*.json`.
+
 During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints each agent's planned steps to the console before execution.
 
 ---
@@ -196,6 +198,8 @@ During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints eac
 │   ├── git_artifacts/       # git_artifacts_*.json (from git-log)
 │   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
 │   └── lineage/             # lineage_*.json (from lineage-extract)
+├── scripts/                 # Place ETL scripts you want lineage-extract to analyze
+│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder .\scripts\multi)
 └── requirements.txt         # Python dependencies
 ```
 
