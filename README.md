@@ -86,7 +86,51 @@ python -m src.cli fingerprint your_event_log.json
 │  ✅ Root cause identification                                       │
 │  ✅ Specific recommendations                                        │
 │  ✅ Prioritized action items                                        │
+│  ✅ Interactive dashboard visualization                             │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+💡 **Tip**: Use the **Dashboard** (see below) to interactively explore results with graphs and visualizations!
+
+---
+
+## Dashboard - Visual Explorer for Results
+
+The **Kratos Dashboard** is a local web UI that lets you visualize and explore agent outputs interactively. It provides:
+
+- **Run History**: Browse all past analyses with timestamps and highlights
+- **RCA Findings**: View root cause analysis results with confidence scores and recommendations
+- **Lineage Graphs**: Interactive table and column-level lineage visualization
+- **Git Dataflow**: Graph visualization showing code dataflow patterns from git history
+
+### Quick Start
+
+```bash
+# Navigate to dashboard folder
+cd dashboard/
+
+# Install dependencies (first time only)
+npm install
+
+# Build the dashboard
+npm run build
+
+# Start the server
+npm run server
+```
+
+Then visit **http://localhost:4173** in your browser.
+
+The dashboard automatically:
+- Shows your latest analysis run
+- Selects the appropriate visualization tab based on the command type (RCA, Git Dataflow, or Lineage)
+- Lets you browse and compare historical runs
+
+### Development Mode
+
+```bash
+cd dashboard/
+npm run dev  # Runs on port 5173 with hot reload
 ```
 
 ---
@@ -190,10 +234,16 @@ During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints eac
 │       ├── root_cause.py           # Finds problems
 │       ├── git_diff_dataflow.py    # Git diff dataflow analysis
 │       └── lineage_extraction.py   # ETL script lineage extraction
+├── dashboard/               # React-based web UI for visualizing results
+│   ├── src/                 # React components (App.tsx, graphs, etc.)
+│   ├── server.js            # Express backend serving artifacts
+│   ├── package.json         # Node.js dependencies
+│   └── dist/                # Built UI (generated via npm run build)
 ├── runs/                    # Generated outputs (ignored by git)
 │   ├── spark_event_logs/    # Example/sample Spark event logs
 │   ├── fingerprints/        # fingerprint_*.json
 │   ├── orchestrator/        # orchestrator_*.json
+│   ├── run_manifests/       # Metadata for each run (used by dashboard)
 │   ├── cloned_repos/        # Local clones for git-log extraction
 │   ├── git_artifacts/       # git_artifacts_*.json (from git-log)
 │   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
@@ -261,6 +311,7 @@ print(result.recommendations)
 - Python 3.10+
 - OpenAI API key (for AI analysis)
 - Spark event log files (JSON format from Spark History Server)
+- Node.js 16+ and npm (for the optional dashboard UI)
 
 ---
 
@@ -285,6 +336,9 @@ A: Yes, as long as you can export the event log JSON files.
 
 **Q: How much does it cost?**  
 A: The tool is free. You only pay for OpenAI API usage (typically a few cents per analysis).
+
+**Q: Can I visualize the results?**  
+A: Yes! Use the **Dashboard** web UI to interactively explore results with graphs, lineage diagrams, and formatted findings. See the Dashboard section above for setup instructions.
 
 ---
 
