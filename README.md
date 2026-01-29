@@ -1,4 +1,4 @@
-# Spark Fingerprint Analyzer
+# Kratos
 
 **Your AI-powered assistant for understanding and troubleshooting Apache Spark jobs.**
 
