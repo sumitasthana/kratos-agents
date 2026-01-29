@@ -11,6 +11,7 @@ import asyncio
 import json
 import subprocess
 import sys
+import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -23,8 +24,101 @@ from src.orchestrator import SmartOrchestrator
 from src.schemas import ExecutionFingerprint
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def _write_run_manifest(
+    *,
+    run_id: str,
+    command: str,
+    inputs: dict,
+    artifacts: dict,
+    highlights: list[str] | None = None,
+    success: bool = True,
+) -> Path:
+    repo_root = _repo_root()
+    runs_root = repo_root / "runs"
+    manifests_dir = runs_root / "run_manifests"
+    manifests_dir.mkdir(parents=True, exist_ok=True)
+
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    def _to_repo_relative(p: str | Path | None) -> str | None:
+        if not p:
+            return None
+        pp = Path(p)
+        if not pp.is_absolute():
+            return str(pp).replace("\\", "/")
+        try:
+            return str(pp.relative_to(repo_root)).replace("\\", "/")
+        except Exception:
+            return str(pp).replace("\\", "/")
+
+    manifest = {
+        "run_id": run_id,
+        "created_at": created_at,
+        "command": command,
+        "inputs": inputs or {},
+        "artifacts": {k: _to_repo_relative(v) for k, v in (artifacts or {}).items()},
+        "summary": {
+            "success": bool(success),
+            "highlights": highlights or [],
+        },
+    }
+
+    manifest_path = manifests_dir / f"{run_id}.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    latest_path = runs_root / "latest.json"
+    latest_payload = {
+        "run_id": run_id,
+        "manifest_path": _to_repo_relative(manifest_path),
+        "created_at": created_at,
+        "command": command,
+    }
+    latest_path.write_text(json.dumps(latest_payload, indent=2), encoding="utf-8")
+
+    return manifest_path
+
+
+def _best_effort_open_dashboard(url: str = "http://localhost:4173") -> None:
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
+
+def _best_effort_start_dashboard_server() -> None:
+    """Start dashboard server if it looks installed. Never hard-fail the CLI."""
+    try:
+        repo_root = _repo_root()
+        dashboard_dir = repo_root / "dashboard"
+        server_js = dashboard_dir / "server.js"
+        node_modules = dashboard_dir / "node_modules"
+        dist_dir = dashboard_dir / "dist"
+        if not server_js.exists():
+            return
+        # Only attempt auto-start if deps are installed.
+        if not node_modules.exists():
+            return
+        # Serving UI requires build output.
+        if not dist_dir.exists():
+            return
+
+        subprocess.Popen(
+            ["node", str(server_js)],
+            cwd=str(dashboard_dir),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+        )
+    except Exception:
+        return
+
+
 def _default_fingerprint_output_path(event_log_path: Path) -> str:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = _repo_root()
     output_dir = repo_root / "runs" / "fingerprints"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -35,7 +129,7 @@ def _default_fingerprint_output_path(event_log_path: Path) -> str:
 
 
 def _default_cloned_repos_dir() -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = _repo_root()
     base_dir = repo_root / "runs" / "cloned_repos"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
@@ -59,7 +153,7 @@ def _default_clone_target_dir(base_dir: Path, repo_url: str) -> Path:
 
 
 def _default_git_artifacts_dir() -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = _repo_root()
     base_dir = repo_root / "runs" / "git_artifacts"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
@@ -73,10 +167,9 @@ def _default_git_artifacts_output_path(base_dir: Path, repo_path: str) -> Path:
 
 
 def _default_git_dataflow_run_dir() -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = _repo_root()
     base_dir = repo_root / "runs" / "git_dataflow"
     base_dir.mkdir(parents=True, exist_ok=True)
-
     return base_dir
 
 
@@ -87,7 +180,7 @@ def _default_git_dataflow_output_path(base_dir: Path) -> Path:
 
 
 def _default_orchestrator_output_dir() -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = _repo_root()
     base_dir = repo_root / "runs" / "orchestrator"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
@@ -286,6 +379,11 @@ def main():
             default="upstream",
             help="Trace direction (default: upstream)"
         )
+        lineage.add_argument(
+            "--view",
+            action="store_true",
+            help="Open the local dashboard after completion (best-effort)"
+        )
 
         args = parser.parse_args()
 
@@ -405,6 +503,27 @@ def main():
                 output_path.write_text(response.explanation, encoding="utf-8")
                 print(f"[git-dataflow] Wrote: {output_path}")
                 print(f"[git-dataflow] Source: {input_path}")
+
+                run_id = uuid4().hex[:12]
+                highlights = list(response.key_findings or [])
+                _write_run_manifest(
+                    run_id=run_id,
+                    command="git-dataflow",
+                    inputs={
+                        "input": str(input_path),
+                        "latest": bool(getattr(args, "latest", False)),
+                        "dir": str(getattr(args, "dir", "")) if getattr(args, "dir", None) else None,
+                        "llm": bool(getattr(args, "llm", False)),
+                        "include_docs": bool(getattr(args, "include_docs", False)),
+                    },
+                    artifacts={
+                        "git_dataflow_json": str(output_path),
+                        "git_artifacts_json": str(input_path),
+                    },
+                    highlights=highlights,
+                    success=True,
+                )
+
                 return 0
             except Exception as e:
                 print(f"Error: {str(e)}", file=sys.stderr)
@@ -494,6 +613,30 @@ def main():
                     print("[lineage-extract] Findings:")
                     for finding in response.key_findings:
                         print(f"  - {finding}")
+
+                # Write dashboard manifest + optionally open dashboard
+                run_id = uuid4().hex[:12]
+                highlights = list(response.key_findings or [])
+                _write_run_manifest(
+                    run_id=run_id,
+                    command="lineage-extract",
+                    inputs={
+                        "folder": str(args.folder) if args.folder else None,
+                        "scripts": script_paths,
+                        "trace_table": args.trace_table,
+                        "trace_column": args.trace_column,
+                        "trace_direction": args.trace_direction,
+                    },
+                    artifacts={
+                        "lineage_json": str(output_path),
+                    },
+                    highlights=highlights,
+                    success=True,
+                )
+
+                if bool(getattr(args, "view", False)):
+                    _best_effort_start_dashboard_server()
+                    _best_effort_open_dashboard("http://localhost:4173")
                 
                 return 0
                 
@@ -546,6 +689,24 @@ def main():
                 out_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
 
                 print(f"[orchestrate] Wrote: {out_path}")
+
+                run_id = uuid4().hex[:12]
+                _write_run_manifest(
+                    run_id=run_id,
+                    command="orchestrate",
+                    inputs={
+                        "query": args.query,
+                        "fingerprint": str(args.fingerprint) if getattr(args, "fingerprint", None) else None,
+                        "from_log": str(args.from_log) if getattr(args, "from_log", None) else None,
+                        "output": str(out_path),
+                    },
+                    artifacts={
+                        "orchestrator_json": str(out_path),
+                    },
+                    highlights=[],
+                    success=True,
+                )
+
                 return 0
             except Exception as e:
                 print(f"Error: {str(e)}", file=sys.stderr)
