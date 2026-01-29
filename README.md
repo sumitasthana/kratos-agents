@@ -118,9 +118,18 @@ python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm
 
 # Optional: include documentation files (README.md, etc.) in dataflow extraction
 python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm --include-docs
+
+# Extract data lineage from ETL scripts (AI-powered)
+python -m src.cli lineage-extract --scripts etl_pipeline.py
+
+# Extract lineage from ALL scripts in a folder
+python -m src.cli lineage-extract --folder .\scripts\multi
+
+# Trace column dependencies
+python -m src.cli lineage-extract --folder .\scripts\multi --trace-table customers --trace-column customer_id --trace-direction upstream
 ```
 
-During `orchestrate` and `git-dataflow`, the tool prints each agent's planned steps to the console before execution.
+During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints each agent's planned steps to the console before execution.
 
 ---
 
@@ -176,14 +185,17 @@ During `orchestrate` and `git-dataflow`, the tool prints each agent's planned st
 │   ├── parser.py            # Event log parsing
 │   └── agents/
 │       ├── query_understanding.py  # Explains queries
-│       └── root_cause.py           # Finds problems
+│       ├── root_cause.py           # Finds problems
+│       ├── git_diff_dataflow.py    # Git diff dataflow analysis
+│       └── lineage_extraction.py   # ETL script lineage extraction
 ├── runs/                    # Generated outputs (ignored by git)
 │   ├── spark_event_logs/    # Example/sample Spark event logs
 │   ├── fingerprints/        # fingerprint_*.json
 │   ├── orchestrator/        # orchestrator_*.json
 │   ├── cloned_repos/        # Local clones for git-log extraction
 │   ├── git_artifacts/       # git_artifacts_*.json (from git-log)
-│   └── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
+│   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
+│   └── lineage/             # lineage_*.json (from lineage-extract)
 └── requirements.txt         # Python dependencies
 ```
 

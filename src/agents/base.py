@@ -34,6 +34,7 @@ class AgentType(str, Enum):
     QUERY_UNDERSTANDING = "query_understanding"
     ROOT_CAUSE = "root_cause"
     GIT_DIFF_DATAFLOW = "git_diff_dataflow"
+    LINEAGE_EXTRACTION = "lineage_extraction"
     OPTIMIZATION = "optimization"
     REGRESSION = "regression"
     ORCHESTRATOR = "orchestrator"

@@ -11,16 +11,6 @@ langchain>=0.3
 langchain-openai>=0.2
 langchain-anthropic>=0.2
 langgraph>=0.2
-langchain
-langchain-anthropic
-langchain-openai
-langgraph
-pandas
-pydantic
-pydriller
-pyspark
-pytest
-pytest-asyncio
-pytest-cov
-python-dotenv
-pyyaml
+
+# Lineage extraction from ETL scripts
+git+https://github.com/Byte-Farmer/lineage-map.git@main
