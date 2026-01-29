@@ -101,7 +101,7 @@ def _default_orchestrator_output_path(base_dir: Path) -> Path:
 
 def main():
     """Parse arguments and generate fingerprint."""
-    known_commands = {"fingerprint", "git-clone", "git-log", "git-dataflow", "orchestrate"}
+    known_commands = {"fingerprint", "git-clone", "git-log", "git-dataflow", "orchestrate", "lineage-extract"}
     use_subcommands = len(sys.argv) > 1 and sys.argv[1] in known_commands
 
     if use_subcommands:
@@ -247,6 +247,46 @@ def main():
             help="Optional output filename (saved under runs/orchestrator/)",
         )
 
+        lineage = subparsers.add_parser(
+            "lineage-extract",
+            description="Extract data lineage from Spark ETL scripts using AI"
+        )
+        lineage.add_argument(
+            "--scripts",
+            "-s",
+            nargs="+",
+            default=None,
+            help="Path(s) to ETL script files (.py, .sql)"
+        )
+        lineage.add_argument(
+            "--folder",
+            "-f",
+            default=None,
+            help="Folder containing ETL scripts (analyzes all .py and .sql files)"
+        )
+        lineage.add_argument(
+            "--output",
+            "-o",
+            default=None,
+            help="Output JSON path (default: runs/lineage/lineage_*.json)"
+        )
+        lineage.add_argument(
+            "--trace-table",
+            default=None,
+            help="Table name to trace column lineage for"
+        )
+        lineage.add_argument(
+            "--trace-column",
+            default=None,
+            help="Column name to trace (requires --trace-table)"
+        )
+        lineage.add_argument(
+            "--trace-direction",
+            choices=["upstream", "downstream"],
+            default="upstream",
+            help="Trace direction (default: upstream)"
+        )
+
         args = parser.parse_args()
 
         if args.command == "git-log":
@@ -366,6 +406,97 @@ def main():
                 print(f"[git-dataflow] Wrote: {output_path}")
                 print(f"[git-dataflow] Source: {input_path}")
                 return 0
+            except Exception as e:
+                print(f"Error: {str(e)}", file=sys.stderr)
+                return 1
+
+        if args.command == "lineage-extract":
+            try:
+                from src.agents.lineage_extraction import LineageExtractionAgent
+                
+                print("[lineage-extract] Starting lineage extraction...")
+                
+                # Determine script paths
+                script_paths = []
+                if args.folder:
+                    folder_path = Path(args.folder)
+                    if not folder_path.exists():
+                        print(f"Error: Folder not found: {folder_path}", file=sys.stderr)
+                        return 1
+                    if not folder_path.is_dir():
+                        print(f"Error: Not a directory: {folder_path}", file=sys.stderr)
+                        return 1
+                    
+                    # Find all .py and .sql files
+                    script_paths = sorted([
+                        str(p) for p in folder_path.glob("**/*.py")
+                    ] + [
+                        str(p) for p in folder_path.glob("**/*.sql")
+                    ])
+                    
+                    if not script_paths:
+                        print(f"Error: No .py or .sql files found in: {folder_path}", file=sys.stderr)
+                        return 1
+                    
+                    print(f"[lineage-extract] Found {len(script_paths)} script(s) in folder: {folder_path}")
+                    for sp in script_paths:
+                        print(f"  - {sp}")
+                
+                elif args.scripts:
+                    script_paths = args.scripts
+                else:
+                    print("Error: Provide either --scripts or --folder", file=sys.stderr)
+                    return 1
+                
+                output_dir = Path(__file__).resolve().parents[1] / "runs" / "lineage"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_path = output_dir / f"lineage_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                
+                if args.output:
+                    output_path = Path(args.output)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                agent = LineageExtractionAgent()
+                
+                # Print plan
+                try:
+                    plan_steps = agent.plan(
+                        {},
+                        script_paths=args.scripts,
+                        trace_table=args.trace_table,
+                        trace_column=args.trace_column
+                    )
+                    if plan_steps:
+                        print(f"[plan] {agent.agent_name}")
+                        for step in plan_steps:
+                            print(f"[plan] - {step}")
+                except Exception:
+                    pass
+                
+                # Run extraction
+                response = asyncio.run(agent.analyze(
+                    {},
+                    script_paths=script_paths,
+                    output_path=str(output_path),
+                    trace_table=args.trace_table,
+                    trace_column=args.trace_column,
+                    trace_direction=args.trace_direction
+                ))
+                
+                if not response.success:
+                    print(f"Error: {response.error}", file=sys.stderr)
+                    return 1
+                
+                print(f"[lineage-extract] Success: {response.summary}")
+                print(f"[lineage-extract] Output: {output_path}")
+                
+                if response.key_findings:
+                    print("[lineage-extract] Findings:")
+                    for finding in response.key_findings:
+                        print(f"  - {finding}")
+                
+                return 0
+                
             except Exception as e:
                 print(f"Error: {str(e)}", file=sys.stderr)
                 return 1
