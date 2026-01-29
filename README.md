@@ -96,7 +96,7 @@ python -m src.cli fingerprint your_event_log.json
 
 ## Dashboard - Visual Explorer for Results
 
-The **Kratos Dashboard** is a local web UI that lets you visualize and explore agent outputs interactively. It provides:
+The **Dashboard** is a local web UI that lets you visualize and explore agent outputs interactively. It provides:
 
 - **Run History**: Browse all past analyses with timestamps and highlights
 - **RCA Findings**: View root cause analysis results with confidence scores and recommendations
