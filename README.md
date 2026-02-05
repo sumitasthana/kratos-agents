@@ -371,7 +371,7 @@ python -m src.cli lineage-extract --folder ./scripts/multi \
 │   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
 │   └── lineage/             # lineage_*.json (from lineage-extract)
 ├── scripts/                 # Place ETL scripts you want lineage-extract to analyze
-│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder .\scripts\multi)
+│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder ./scripts/multi)
 └── requirements.txt         # Python dependencies
 ```
 
