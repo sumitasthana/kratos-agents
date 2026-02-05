@@ -1,25 +1,43 @@
 # Kratos
 
-**Your AI-powered assistant for understanding and troubleshooting Apache Spark jobs.**
+**Your AI-powered assistant for understanding Spark jobs, data pipelines, and code dataflow — all in plain English.**
 
 ---
 
 ## What Does This Tool Do?
 
-When your Spark job runs slow, fails, or behaves unexpectedly, this tool helps you understand **why** — without needing to be a Spark expert.
+Kratos is a comprehensive data engineering analysis platform that helps you understand and troubleshoot your data pipelines without needing to be an expert. It provides three main capabilities:
 
-### In Simple Terms:
+### 1. **Spark Job Analysis** 📊
+Analyzes Apache Spark event logs to diagnose performance issues, explain query execution, and identify root causes of failures.
 
-1. **You provide**: A Spark event log file (automatically generated when Spark jobs run)
-2. **The tool creates**: A "fingerprint" — a structured summary of what happened during execution
-3. **AI agents analyze**: The fingerprint and explain issues in plain English
+**You provide**: A Spark event log file (automatically generated when Spark jobs run)  
+**Kratos creates**: A "fingerprint" — a structured summary of what happened during execution  
+**AI agents analyze**: The fingerprint and explain issues in plain English
+
+### 2. **Git Repository Dataflow Analysis** 🔄
+Extracts data flow patterns from your git repository's commit history to understand how data moves through your codebase.
+
+**You provide**: A git repository URL or local path  
+**Kratos extracts**: Commit diffs and code changes  
+**AI agents identify**: Data reads, writes, joins, transformations, and dataflow patterns
+
+### 3. **Data Lineage Extraction** 🔗
+Analyzes ETL scripts to extract table and column-level data lineage, helping you understand data dependencies.
+
+**You provide**: Spark ETL scripts (.py, .sql)  
+**Kratos extracts**: Table and column dependencies  
+**AI agents trace**: Upstream and downstream data flows
 
 ### Example Questions It Can Answer:
 
-- *"Why is my Spark job running slow?"*
-- *"What is this query actually doing?"*
-- *"Why did my job fail?"*
-- *"Where is the bottleneck in my data pipeline?"*
+- *"Why is my Spark job running slow?"* (Spark Analysis)
+- *"What is this query actually doing?"* (Spark Analysis)
+- *"Why did my job fail?"* (Spark Analysis)
+- *"Where is the bottleneck in my data pipeline?"* (Spark Analysis)
+- *"What data sources does this code read from?"* (Git Dataflow)
+- *"Where does this table come from?"* (Lineage Extraction)
+- *"What columns depend on customer_id?"* (Lineage Extraction)
 
 ---
 
@@ -38,8 +56,9 @@ Create a `.env` file with your OpenAI API key:
 OPENAI_API_KEY=your-api-key-here
 ```
 
-### Step 3: Run the Demo
+### Step 3: Choose Your Analysis Type
 
+**Option A: Analyze a Spark Job**
 ```bash
 # Ask a question about your Spark job (generates a fingerprint first)
 python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my Spark job slow?"
@@ -48,9 +67,25 @@ python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my 
 python -m src.cli fingerprint your_event_log.json
 ```
 
+**Option B: Analyze Git Repository Dataflow**
+```bash
+# Clone a repository and analyze dataflow patterns
+python -m src.cli git-clone https://github.com/your-org/your-repo.git --dest your-repo
+python -m src.cli git-log ./runs/cloned_repos/your-repo
+python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm
+```
+
+**Option C: Extract Data Lineage from ETL Scripts**
+```bash
+# Extract lineage from your ETL scripts
+python -m src.cli lineage-extract --folder ./path/to/etl/scripts
+```
+
 ---
 
 ## How It Works
+
+### Workflow 1: Spark Job Analysis
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -78,7 +113,54 @@ python -m src.cli fingerprint your_event_log.json
 │  🔧 Root Cause Agent → "The job is slow because 8GB of data spilled │
 │                         to disk. Increase executor memory to fix."  │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+### Workflow 2: Git Repository Dataflow Analysis
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      YOUR GIT REPOSITORY                            │
+│                              ↓                                      │
+│                    Commit History + Diffs                           │
+└─────────────────────────────────────────────────────────────────────┘
                                ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    GIT LOG EXTRACTOR                                │
+│  Extracts code changes and analyzes patterns                        │
+└─────────────────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                  GIT DATAFLOW AGENT                                 │
+│                                                                     │
+│  Identifies:                                                        │
+│  • Data sources (reads from tables, files, APIs)                    │
+│  • Data sinks (writes to tables, files, APIs)                       │
+│  • Joins and transformations                                        │
+│  • Process flows and data domains                                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Workflow 3: Data Lineage Extraction
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      ETL SCRIPTS (.py, .sql)                        │
+└─────────────────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                  LINEAGE EXTRACTION AGENT                           │
+│                                                                     │
+│  Analyzes scripts to extract:                                       │
+│  • Table-level dependencies                                         │
+│  • Column-level lineage                                             │
+│  • Transformation logic                                             │
+│  • Upstream/downstream flows                                        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### All Results →
+
+```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     ACTIONABLE INSIGHTS                             │
 │                                                                     │
@@ -135,51 +217,73 @@ npm run dev  # Runs on port 5173 with hot reload
 
 ---
 
-## Two Ways to Use
+## Core Capabilities
 
-### 1. Smart Orchestrator (Recommended)
+Kratos provides three main analysis capabilities, each designed for different data engineering tasks:
 
-Ask a question in plain English. The system automatically picks the right agents and coordinates their analysis:
+### 1. 🔍 Spark Job Analysis
 
+Analyze Apache Spark event logs to understand performance, diagnose issues, and explain query execution.
+
+**Smart Orchestrator (Recommended):**
 ```bash
+# Ask questions in plain English - automatically routes to the right agents
 python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my job failing?"
 python -m src.cli orchestrate --from-log your_event_log.json --query "Explain what this query does"
 python -m src.cli orchestrate --from-log your_event_log.json --query "What are the performance bottlenecks?"
 ```
 
-### 2. Individual Agents
+**Direct Fingerprint Generation:**
+```bash
+# Generate a fingerprint only (for advanced use cases)
+python -m src.cli fingerprint your_event_log.json
+```
 
-Run specific pipeline steps directly for targeted workflows:
+### 2. 🔄 Git Repository Dataflow Analysis
+
+Extract dataflow patterns (reads, writes, joins, transformations) from git repository commit history.
 
 ```bash
-# Generate a fingerprint
-python -m src.cli fingerprint your_event_log.json
-
-# Run dataflow extraction from a Git repo diff history
+# Clone a repository
 python -m src.cli git-clone https://github.com/Byte-Farmer/kratos-v1.git --dest kratos-v1
-python -m src.cli git-log .\runs\cloned_repos\kratos-v1
-python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm
 
-# Optional: include documentation files (README.md, etc.) in dataflow extraction
-python -m src.cli git-dataflow --latest --dir .\runs\git_artifacts --llm --include-docs
+# Extract git artifacts (commits + diffs)
+python -m src.cli git-log ./runs/cloned_repos/kratos-v1
 
-# Extract data lineage from ETL scripts (AI-powered)
+# Analyze dataflow patterns with AI
+python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm
+
+# Optional: include documentation files (README.md, etc.) in analysis
+python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm --include-docs
+```
+
+### 3. 🔗 Data Lineage Extraction
+
+Extract table and column-level data lineage from Spark ETL scripts using AI.
+
+```bash
+# Extract lineage from a single script
 python -m src.cli lineage-extract --scripts etl_pipeline.py
 
 # Extract lineage from ALL scripts in a folder
-python -m src.cli lineage-extract --folder .\scripts\multi
+python -m src.cli lineage-extract --folder ./scripts/multi
 
-# Trace column dependencies
-python -m src.cli lineage-extract --folder .\scripts\multi --trace-table customers --trace-column customer_id --trace-direction upstream
+# Trace column dependencies (upstream or downstream)
+python -m src.cli lineage-extract --folder ./scripts/multi \
+  --trace-table customers \
+  --trace-column customer_id \
+  --trace-direction upstream
 ```
 
-`lineage-extract` writes a lineage JSON artifact to `runs/lineage/lineage_*.json`.
+**Output:** Lineage artifacts are saved to `runs/lineage/lineage_*.json`
 
-During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints each agent's planned steps to the console before execution.
+**Note:** During `orchestrate`, `git-dataflow`, and `lineage-extract` commands, the tool prints each agent's planned steps to the console before execution.
 
 ---
 
-## What Problems Can It Detect?
+## What Can Kratos Help You With?
+
+### Spark Job Issues
 
 | Problem | What You'll See | What It Means |
 |---------|-----------------|---------------|
@@ -188,6 +292,24 @@ During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints eac
 | **Task Failures** | "23 tasks failed, 45 retries" | Something crashed during execution |
 | **Shuffle Overhead** | "7.4GB shuffle volume" | Too much data moving between machines |
 | **Slow Stages** | "Stage 4 took 15 minutes" | Bottleneck in your pipeline |
+
+### Git Dataflow Insights
+
+| Analysis | What It Identifies | Use Case |
+|----------|-------------------|----------|
+| **Data Sources** | Tables, files, APIs being read | Understand data dependencies |
+| **Data Sinks** | Where data is written | Track data outputs |
+| **Transformations** | Joins, filters, aggregations | Document business logic |
+| **Process Flows** | Complete data pipeline flow | Architecture documentation |
+
+### Data Lineage Capabilities
+
+| Feature | What It Provides | Use Case |
+|---------|-----------------|----------|
+| **Table Dependencies** | Which tables depend on others | Impact analysis for changes |
+| **Column Lineage** | Column-level data flow | Compliance and data governance |
+| **Upstream Tracing** | Where data originates | Root cause analysis |
+| **Downstream Tracing** | What depends on this data | Change impact assessment |
 
 ---
 
@@ -249,7 +371,7 @@ During `orchestrate`, `git-dataflow`, and `lineage-extract`, the tool prints eac
 │   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
 │   └── lineage/             # lineage_*.json (from lineage-extract)
 ├── scripts/                 # Place ETL scripts you want lineage-extract to analyze
-│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder .\scripts\multi)
+│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder ./scripts/multi)
 └── requirements.txt         # Python dependencies
 ```
 
@@ -328,7 +450,13 @@ print(result.recommendations)
 **Q: Do I need to be a Spark expert to use this?**  
 A: No! The tool explains everything in plain English.
 
-**Q: Where do I get event log files?**  
+**Q: What can Kratos analyze?**  
+A: Kratos can analyze three types of data engineering artifacts:
+1. **Spark event logs** - for performance troubleshooting and query understanding
+2. **Git repositories** - for extracting dataflow patterns from code changes
+3. **ETL scripts** - for extracting table and column-level data lineage
+
+**Q: Where do I get Spark event log files?**  
 A: Spark automatically generates them. Check your Spark History Server or the `spark.eventLog.dir` configuration.
 
 **Q: Does it work with Databricks/EMR/Dataproc?**  
@@ -339,6 +467,11 @@ A: The tool is free. You only pay for OpenAI API usage (typically a few cents pe
 
 **Q: Can I visualize the results?**  
 A: Yes! Use the **Dashboard** web UI to interactively explore results with graphs, lineage diagrams, and formatted findings. See the Dashboard section above for setup instructions.
+
+**Q: What's the difference between git-dataflow and lineage-extract?**  
+A: 
+- **git-dataflow**: Analyzes git commit history to extract dataflow patterns from code changes (great for understanding how data flows evolved)
+- **lineage-extract**: Analyzes current ETL scripts to extract detailed table/column lineage (great for data governance and compliance)
 
 ---
 
