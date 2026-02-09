@@ -2,6 +2,11 @@
 
 **Your AI-powered assistant for understanding Spark jobs, data pipelines, and code dataflow — all in plain English.**
 
+[![GitHub Wiki](https://img.shields.io/badge/documentation-wiki-blue)](https://github.com/sumitasthana/kratos-agents/wiki)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
+
+📚 **[Complete Documentation Available in Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** - Installation guides, tutorials, examples, troubleshooting, and more!
+
 ---
 
 ## What Does This Tool Do?
@@ -439,9 +444,22 @@ print(result.recommendations)
 
 ## Documentation
 
+### 📚 Comprehensive Wiki
+Visit our **[GitHub Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** for complete documentation:
+
+- **[Home](https://github.com/sumitasthana/kratos-agents/wiki/Home)** - Overview and navigation
+- **[Installation Guide](https://github.com/sumitasthana/kratos-agents/wiki/Installation-Guide)** - Platform-specific installation
+- **[Quick Start Tutorial](https://github.com/sumitasthana/kratos-agents/wiki/Quick-Start-Tutorial)** - Step-by-step getting started
+- **[Spark Job Analysis](https://github.com/sumitasthana/kratos-agents/wiki/Spark-Job-Analysis)** - Performance troubleshooting guide
+- **[Troubleshooting](https://github.com/sumitasthana/kratos-agents/wiki/Troubleshooting)** - Common issues and solutions
+- **[FAQ](https://github.com/sumitasthana/kratos-agents/wiki/FAQ)** - Frequently asked questions (40+)
+- **[Examples](https://github.com/sumitasthana/kratos-agents/wiki/Examples)** - Real-world use cases
+
+### 📖 Additional Documentation
 - [QUICKSTART.md](QUICKSTART.md) - Detailed installation and usage guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical deep dive
 - [API_REFERENCE.md](API_REFERENCE.md) - Complete API documentation
+- [WIKI_DEPLOYMENT.md](WIKI_DEPLOYMENT.md) - Instructions for deploying the wiki
 
 ---
 
