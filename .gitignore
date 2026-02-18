@@ -2,29 +2,87 @@
 __pycache__/
 *.py[cod]
 *.log
+*.pyc
+
 
 # Virtual environments
 venv/
+venv311/
 .venv/
+
 
 # Test caches
 .pytest_cache/
 
+
 # Local env
 .env
+
 
 # Generated outputs
 git_dataflow_runs/
 orchestrator_runs/
 runs/
-
 demo_script.txt
+
 
 # Local cloned repos (for demos)
 cloned_repos/
 
-# Vendored git-log-extractor generated outputs
+
+# Vendored git-log-extractor
 /git-log-extractor/extracted_lineage.json
 /git-log-extractor/extractor.log
 /git-log-extractor/gex-accel/
 /git-log-extractor/.venv/
+
+
+# ============================================
+# LOG STORAGE
+# ============================================
+
+# Raw logs — always ignore (too large, not source)
+logs/raw/spark_events/*
+logs/raw/openlineage/*
+logs/raw/git_repos/*
+logs/raw/etl_scripts/*
+logs/archives/*
+
+# Processed output — ignore bulk, keep samples
+logs/processed/fingerprints/*
+logs/processed/analysis_results/*
+logs/processed/lineage_graphs/*
+
+# Keep directory structure markers
+!logs/**/.gitkeep
+!logs/**/README.md
+!logs/INDEX.json
+
+# Keep sample files for testing (force-add with git add -f)
+!logs/processed/fingerprints/sample_healthy.json
+!logs/processed/fingerprints/sample_memory_pressure.json
+!logs/processed/analysis_results/sample_healthy_result.json
+!logs/processed/analysis_results/sample_memory_pressure_result.json
+
+
+# ============================================
+# DASHBOARD
+# ============================================
+dashboard/node_modules/
+dashboard/dist/
+dashboard/logs/
+dashboard/.vite/
+dashboard/node_modules/.vite/
+dashboard/node_modules/.package-lock.json
+
+
+# ============================================
+# SCREENSHOTS
+# ============================================
+# screenshots/ is NOT ignored — tracked for README
+
+
+# ============================================
+# RUNTIME SCRIPTS & MISC
+# ============================================
+# download_spark_logs.py is NOT ignored — needed for testing

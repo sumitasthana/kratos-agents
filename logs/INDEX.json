@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "created_at": "2026-02-10T11:05:19.743764",
+    "version": "1.0.0",
+    "base_directory": "C:\\Users\\aruneshkumar.lal\\Secret_project\\kratos-agents\\logs",
+    "system": "Kratos Agent Platform"
+  },
+  "structure": {
+    "raw": {
+      "spark_events": {
+        "description": "Spark event logs",
+        "supported_formats": [
+          ".json",
+          ".log"
+        ],
+        "purpose": "Spark job performance analysis"
+      },
+      "openlineage": {
+        "description": "OpenLineage JSON logs",
+        "supported_formats": [
+          ".json"
+        ],
+        "purpose": "Data lineage extraction and analysis"
+      },
+      "git_repos": {
+        "description": "Git repositories",
+        "supported_formats": [
+          "git repository"
+        ],
+        "purpose": "Code dataflow analysis"
+      },
+      "etl_scripts": {
+        "description": "ETL scripts",
+        "supported_formats": [
+          ".py",
+          ".sql",
+          ".scala"
+        ],
+        "purpose": "Static lineage extraction"
+      }
+    },
+    "processed": {
+      "fingerprints": {
+        "description": "Generated fingerprints",
+        "output_format": "JSON"
+      },
+      "analysis_results": {
+        "description": "AI agent analysis results",
+        "output_format": "JSON"
+      },
+      "lineage_graphs": {
+        "description": "Data lineage visualizations",
+        "output_format": "JSON/DOT"
+      }
+    },
+    "archives": {
+      "description": "Archived logs and backups",
+      "retention_policy": "Manual cleanup"
+    }
+  },
+  "workflows": {
+    "collect": "Place raw logs in logs/raw/{{type}}/",
+    "process": "Run Kratos CLI commands to generate fingerprints",
+    "analyze": "AI agents produce insights in logs/processed/",
+    "archive": "Move old logs to logs/archives/"
+  }
+}

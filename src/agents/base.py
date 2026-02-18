@@ -40,42 +40,81 @@ class AgentType(str, Enum):
     ORCHESTRATOR = "orchestrator"
 
 
+# class AgentResponse(BaseModel):
+#     """Standardized response from any agent."""
+    
+#     agent_type: AgentType = Field(..., description="Type of agent that produced this response")
+#     agent_name: str = Field(..., description="Human-readable agent name")
+#     success: bool = Field(..., description="Whether analysis completed successfully")
+    
+#     # Main output
+#     summary: str = Field(..., description="Brief summary of findings (1-2 sentences)")
+#     explanation: str = Field(..., description="Detailed natural language explanation")
+    
+#     # Structured findings
+#     key_findings: List[str] = Field(default_factory=list, description="Bullet-point findings")
+#     confidence: float = Field(default=1.0, description="Confidence score 0.0-1.0")
+    
+#     # Metadata
+#     timestamp: datetime = Field(default_factory=datetime.now)
+#     processing_time_ms: Optional[int] = Field(None, description="Time taken to generate response")
+#     model_used: Optional[str] = Field(None, description="LLM model used if applicable")
+#     tokens_used: Optional[int] = Field(None, description="Token count if applicable")
+    
+#     # Error handling
+#     error: Optional[str] = Field(None, description="Error message if success=False")
+    
+#     # Cross-references for orchestrator
+#     suggested_followup_agents: List[AgentType] = Field(
+#         default_factory=list, 
+#         description="Other agents that might provide additional insights"
+#     )
 class AgentResponse(BaseModel):
     """Standardized response from any agent."""
-    
+
     agent_type: AgentType = Field(..., description="Type of agent that produced this response")
     agent_name: str = Field(..., description="Human-readable agent name")
     success: bool = Field(..., description="Whether analysis completed successfully")
-    
+
     # Main output
     summary: str = Field(..., description="Brief summary of findings (1-2 sentences)")
     explanation: str = Field(..., description="Detailed natural language explanation")
-    
+
     # Structured findings
     key_findings: List[str] = Field(default_factory=list, description="Bullet-point findings")
     confidence: float = Field(default=1.0, description="Confidence score 0.0-1.0")
-    
+
     # Metadata
     timestamp: datetime = Field(default_factory=datetime.now)
     processing_time_ms: Optional[int] = Field(None, description="Time taken to generate response")
     model_used: Optional[str] = Field(None, description="LLM model used if applicable")
     tokens_used: Optional[int] = Field(None, description="Token count if applicable")
-    
+
+    # NEW: free-form metadata for orchestrator/UI
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional structured data for downstream consumers"
+    )
+
     # Error handling
     error: Optional[str] = Field(None, description="Error message if success=False")
-    
+
     # Cross-references for orchestrator
     suggested_followup_agents: List[AgentType] = Field(
-        default_factory=list, 
+        default_factory=list,
         description="Other agents that might provide additional insights"
     )
+
+    class Config:
+        # Optional: silence the `model_used` protected namespace warning
+        protected_namespaces = ()
 
 
 class LLMConfig(BaseModel):
     """Configuration for LLM provider."""
     
     provider: str = Field(default="openai", description="LLM provider: openai, anthropic")
-    model: str = Field(default="gpt-4o", description="Model name")
+    model: str = Field(default="gpt-4.1", description="Model name")
     temperature: float = Field(default=0.3, description="Sampling temperature")
     max_tokens: int = Field(default=2000, description="Max response tokens")
 

@@ -1,16 +1,43 @@
+# requirements.txt
+# Core AI/ML dependencies
 pydantic>=2.0
 pandas>=2.0
 pyspark>=3.3
 pyyaml>=6.0
+
+# Testing
 pytest>=7.0
 pytest-cov>=4.0
 pytest-asyncio>=0.23
+
+# Environment
 python-dotenv>=1.0
+
+# Git analysis
 pydriller
+gitpython>=3.1.0
+
+# LangChain ecosystem
 langchain>=0.3
+langchain-core>=0.3  # ADD THIS LINE - it's required
 langchain-openai>=0.2
 langchain-anthropic>=0.2
 langgraph>=0.2
+
+# LLM providers
+openai>=1.12.0
+anthropic>=0.18.0
+
+# CLI
+click>=8.1.0
+rich>=13.0.0
+typer>=0.9.0
+
+# OpenLineage support
+openlineage-python>=1.0.0
+
+# SQL parsing
+sqlparse>=0.4.0
 
 # Lineage extraction from ETL scripts
 git+https://github.com/Byte-Farmer/lineage-map.git@main
