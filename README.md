@@ -100,15 +100,15 @@ Kratos ingests Spark execution logs, generates an **ExecutionFingerprint**, and 
 ## Dashboard Preview
 
 ### Healthy Execution
-![Healthy](screenshots\Healthy.png)
+![Healthy](screenshots/Healthy.png)
 Zero failures, zero spill, health score 100/100. Confidence score driven by data completeness and signal strength — not hardcoded.
 
 ### Memory Pressure
-![Memory Pressure](screenshots\Memory_pressure.png)
+![Memory Pressure](screenshots/Memory_pressure.png)
 8 GB disk spill, 3 failed tasks. Score penalty breakdown shows Task Failures −10pts + Memory Pressure −15pts. Executive Summary parsed into Data Flow, Key Operations, and Partitioning sections.
 
 ### Execution Failure
-![Execution Failure](screenshots\Execution_Failure.png)
+![Execution Failure](screenshots/Execution_Failure.png)
 Single task failure with 0% success rate. Task Failures −40pts penalty dominates. No shuffle or memory involvement — classified as `EXECUTION_FAILURE` by the health-score derivation layer.
 
 ---
