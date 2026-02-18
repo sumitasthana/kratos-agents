@@ -350,18 +350,26 @@ python -m src.cli orchestrate \
 * **No emoji in backend** — prefix labels like `"Memory Pressure: "` are plain text; icons assigned by the frontend `getLogStatusMeta()`
 
 ---
-
 ## Contributing
 
 ```bash
+# Branch naming convention
 git checkout -b arunesh/<feature-name>
 
+# Examples used in this repo
+git checkout -b arunesh/sparkanalyzer
+git checkout -b arunesh/rca-confidence-scoring
+git checkout -b arunesh/ui-severity-fixes
+
+# Commit format (conventional commits)
 git commit -m "feat(scope): short description
 
-- bullet point for each logical change"
+- bullet for each logical change
+- keep scope to one of: rca, ui, orchestrator, infra, docs"
 
+# Push and open PR
 git push -u origin arunesh/<feature-name>
-# Open PR into main on GitHub
+# GitHub prints the PR URL directly in the terminal output — use it
 ```
 
 ---
