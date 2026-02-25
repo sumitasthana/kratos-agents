@@ -1,6 +1,8 @@
 import asyncio
 
 from agents.airflow_log_analyzer import AirflowLogAnalyzerAgent
+from orchestrator import KratosOrchestrator  # make sure import path matches your repo layout
+
 
 LOG_LINES = [
     "[2026-02-25, 10:15:00 +0000] {taskinstance.py:1332} INFO - Starting attempt 1 of 2",
@@ -27,7 +29,7 @@ LOG_LINES = [
 ]
 
 
-async def main() -> None:
+async def test_airflow_agent() -> None:
     agent = AirflowLogAnalyzerAgent()
 
     fingerprint = {
@@ -41,13 +43,104 @@ async def main() -> None:
 
     resp = await agent.analyze(fingerprint_data=fingerprint)
 
+    print("=== AirflowLogAnalyzerAgent direct ===")
     print("Success:", resp.success)
     print("Summary:", resp.summary)
     print("\nKey findings:")
     for k in resp.key_findings:
         print("-", k)
-
     print("\nExplanation:\n", resp.explanation)
+    print("=" * 80)
+
+async def test_kratos_with_airflow() -> None:
+    kratos = KratosOrchestrator()
+
+    airflow_fingerprint = {
+        "dag_id": "prices_dag",
+        "task_id": "load_prices",
+        "execution_date": "2026-02-25T10:15:00+00:00",
+        "try_number": 1,
+        "max_retries": 2,
+        "log_lines": LOG_LINES,
+    }
+
+    report = await kratos.run(
+        user_query="Check Airflow task health and behaviour",
+        airflow_fingerprint=airflow_fingerprint,
+    )
+
+    # report is a RecommendationReport
+    ip = report.issue_profile
+    print("=== KratosOrchestrator with Airflow ===")
+    print("Dominant problem type:", ip.dominant_problem_type)
+    print("Overall health score:", ip.overall_health_score)
+    print("Overall confidence:", ip.overall_confidence)
+
+    if ip.log_analysis is not None:
+        print("\nLog analysis problem type:", ip.log_analysis.problem_type)
+        print("Log executive summary:")
+        print(ip.log_analysis.executive_summary)
+
+    print("\nExecutive summary (recommendation report):")
+    print(report.executive_summary)
+
+    if report.prioritized_fixes:
+        print("\nPrioritized fixes:")
+        for fix in report.prioritized_fixes:
+            print("-", fix.title)
+    else:
+        print("\nNo fixes generated (as expected for a healthy run).")
+
+# async def test_kratos_with_airflow() -> None:
+#     kratos = KratosOrchestrator()
+
+#     airflow_fingerprint = {
+#         "dag_id": "prices_dag",
+#         "task_id": "load_prices",
+#         "execution_date": "2026-02-25T10:15:00+00:00",
+#         "try_number": 1,
+#         "max_retries": 2,
+#         "log_lines": LOG_LINES,
+#     }
+
+#     report = await kratos.run(
+#         user_query="Check Airflow task health and behaviour",
+#         airflow_fingerprint=airflow_fingerprint,
+#     )
+
+#     print("=== KratosOrchestrator with Airflow ===")
+
+#     # Robustly inspect the pydantic model
+#     try:
+#         data = report.model_dump()
+#     except AttributeError:
+#         data = report.__dict__
+
+#     print("Report keys:", list(data.keys()))
+
+#     if "problem_type" in data:
+#         print("Problem type:", data["problem_type"])
+#     else:
+#         print("Problem type: n/a")
+
+#     if "executive_summary" in data:
+#         print("\nExecutive summary:")
+#         print(data["executive_summary"])
+
+#     recs = data.get("recommendations") or []
+#     if recs:
+#         print("\nRecommendations:")
+#         for rec in recs:
+#             print("-", rec)
+
+#     print("\nFull report dict:")
+#     print(data)
+#     print("=" * 80)
+
+
+async def main() -> None:
+    await test_airflow_agent()
+    await test_kratos_with_airflow()
 
 
 if __name__ == "__main__":

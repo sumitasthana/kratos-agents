@@ -65,6 +65,7 @@ from schemas import (
 from agent_coordination import AgentContext, SharedFinding
 from agents import QueryUnderstandingAgent, RootCauseAgent, LLMConfig, AgentResponse
 from agents.base import AgentType
+from agents.airflow_log_analyzer import AirflowLogAnalyzerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -702,22 +703,80 @@ class SparkOrchestrator:
 
 # Backward compatibility alias — all existing code using SmartOrchestrator still works
 SmartOrchestrator = SparkOrchestrator
+# ============================================================================
+# Airflow Log Analyzer Agent 
+# ============================================================================
+class AirflowLogAnalyzerOrchestrator:
+    """
+    Thin wrapper so AirflowLogAnalyzerAgent fits the `solve_problem` interface
+    used by KratosOrchestrator.
+    """
+
+    def __init__(
+        self,
+        fingerprint: Dict[str, Any],
+        llm_config: Optional[LLMConfig] = None,
+    ) -> None:
+        self.fingerprint = fingerprint
+        self.agent = AirflowLogAnalyzerAgent()
+        self.llm_config = llm_config or LLMConfig()
+
+    async def solve_problem(self, user_query: str) -> AnalysisResult:
+        resp = await self.agent.analyze(fingerprint_data=self.fingerprint)
+
+        health = resp.metadata.get("health", "Healthy")
+        severity = resp.metadata.get("severity", "low")
+        if health == "Healthy":
+            health_score = 100.0
+        elif severity == "medium":
+            health_score = 70.0
+        else:
+            health_score = 40.0
+
+        finding = AgentFinding(
+            agent_type="airflow_log_analyzer",
+            finding_type="analysis",
+            severity=Severity.INFO,
+            title=resp.summary,
+            description="\n".join(resp.key_findings),
+            recommendation=None,
+            evidence=[],
+        )
+
+        return AnalysisResult(
+            problem_type=ProblemType.GENERAL,
+            user_query=user_query or "Airflow task post-execution analysis",
+            executive_summary=resp.summary,
+            detailed_analysis=resp.explanation,
+            findings=[finding],
+            recommendations=[],
+            health_score=health_score,
+            agents_used=["airflow_log_analyzer"],
+            agent_sequence=["airflow_log_analyzer"],
+            total_processing_time_ms=0,
+            confidence=resp.confidence,
+            raw_agent_responses={"airflow_log_analyzer": resp.model_dump()},
+        )
 
 
 # ============================================================================
 # ROUTING AGENT
 # ============================================================================
+# ============================================================================ 
+# ROUTING AGENT
+# ============================================================================ 
 
 class RoutingAgent:
     """
     First-layer agent: inspects job metadata and failure signals,
-    decides which of the four analyzers to invoke, and produces
+    decides which of the analyzers to invoke, and produces
     an ordered AgentTask list for KratosOrchestrator.
 
     Routing rules (heuristic — LLM override available):
-      - spark_log_path present OR trigger == "failure"  → log_analyzer
-      - repo_path present OR compliance_context set     → code_analyzer
-      - dataset_path present                            → data_profiler
+      - spark_log_path present OR ExecutionFingerprint → Spark log_analyzer
+      - airflow_fingerprint present                    → Airflow log analyzer
+      - repo_path present OR compliance_context set    → code_analyzer
+      - dataset_path present                           → data_profiler
       - git_log_path present OR trigger == "code_change"→ change_analyzer
     """
 
@@ -734,30 +793,42 @@ class RoutingAgent:
         dataset_path:        Optional[str] = None,
         git_log_path:        Optional[str] = None,
         execution_fingerprint: Optional[ExecutionFingerprint] = None,
+        airflow_fingerprint:   Optional[Dict[str, Any]] = None,
     ) -> RoutingDecision:
+
         """Produce a RoutingDecision synchronously (no LLM call needed for heuristic)."""
 
-        invoke_log    = bool(spark_log_path or execution_fingerprint or trigger == "failure")
-        invoke_code   = bool(repo_path or trigger == "compliance_scan")
-        invoke_data   = bool(dataset_path or trigger == "data_quality")
-        invoke_change = bool(git_log_path or trigger == "code_change")
+        invoke_spark_log   = bool(spark_log_path or execution_fingerprint or trigger == "failure")
+        invoke_airflow_log = bool(airflow_fingerprint)
+        invoke_code        = bool(repo_path or trigger == "compliance_scan")
+        invoke_data        = bool(dataset_path or trigger == "data_quality")
+        invoke_change      = bool(git_log_path or trigger == "code_change")
 
-        # Always run at least log_analyzer if nothing else matches
-        if not any([invoke_log, invoke_code, invoke_data, invoke_change]):
-            invoke_log = True
+        # Always run at least one log analyzer if nothing else matches
+        if not any([invoke_spark_log, invoke_airflow_log, invoke_code, invoke_data, invoke_change]):
+            invoke_spark_log = True
 
         tasks: List[AgentTask] = []
         priority = 1
 
-        if invoke_log:
+        if invoke_spark_log:
             tasks.append(AgentTask(
-                agent_type       = "log_analyzer",
+                agent_type       = "spark_log_analyzer",
                 task_description = "Analyse Spark execution log for failures, memory pressure, and performance issues",
                 priority         = priority,
                 source_data      = {
                     "spark_log_path": spark_log_path,
                     "execution_fingerprint": "pre_built" if execution_fingerprint else None,
                 },
+            ))
+            priority += 1
+
+        if invoke_airflow_log:
+            tasks.append(AgentTask(
+                agent_type       = "airflow_log_analyzer",
+                task_description = "Analyse Airflow task logs for health, retries, and data ingestion behaviour",
+                priority         = priority,
+                source_data      = {"airflow_fingerprint": True},
             ))
             priority += 1
 
@@ -788,17 +859,18 @@ class RoutingAgent:
             ))
 
         rationale_parts = []
-        if invoke_log:    rationale_parts.append("Spark log present → LogAnalyzer")
-        if invoke_code:   rationale_parts.append("Repo path present → CodeAnalyzer")
-        if invoke_data:   rationale_parts.append("Dataset path present → DataProfiler")
-        if invoke_change: rationale_parts.append("Git log present → ChangeAnalyzer")
+        if invoke_spark_log:   rationale_parts.append("Spark log present → Spark LogAnalyzer")
+        if invoke_airflow_log: rationale_parts.append("Airflow fingerprint → Airflow LogAnalyzer")
+        if invoke_code:        rationale_parts.append("Repo path present → CodeAnalyzer")
+        if invoke_data:        rationale_parts.append("Dataset path present → DataProfiler")
+        if invoke_change:      rationale_parts.append("Git log present → ChangeAnalyzer")
 
         logger.info(f"[ROUTING] {job_id}: {' | '.join(rationale_parts)}")
 
         return RoutingDecision(
             job_id                 = job_id,
             trigger                = trigger,
-            invoke_log_analyzer    = invoke_log,
+            invoke_log_analyzer    = invoke_spark_log or invoke_airflow_log,
             invoke_code_analyzer   = invoke_code,
             invoke_data_profiler   = invoke_data,
             invoke_change_analyzer = invoke_change,
@@ -1163,6 +1235,9 @@ class RecommendationAgent:
 # ============================================================================
 # KRATOS ORCHESTRATOR  (top-level coordinator)
 # ============================================================================
+# ============================================================================ 
+# KRATOS ORCHESTRATOR  (top-level coordinator)
+# ============================================================================ 
 
 class KratosOrchestrator:
     """
@@ -1179,9 +1254,9 @@ class KratosOrchestrator:
     """
 
     def __init__(self, llm_config: Optional[LLMConfig] = None) -> None:
-        self.llm_config          = llm_config or LLMConfig()
-        self.routing_agent       = RoutingAgent(llm_config)
-        self.triangulation_agent = TriangulationAgent(llm_config)
+        self.llm_config           = llm_config or LLMConfig()
+        self.routing_agent        = RoutingAgent(llm_config)
+        self.triangulation_agent  = TriangulationAgent(llm_config)
         self.recommendation_agent = RecommendationAgent(llm_config)
 
     async def run(
@@ -1190,6 +1265,7 @@ class KratosOrchestrator:
         trigger:               str                          = "manual",
         spark_log_path:        Optional[str]               = None,
         execution_fingerprint: Optional[ExecutionFingerprint] = None,
+        airflow_fingerprint:   Optional[Dict[str, Any]]    = None,
         repo_path:             Optional[str]               = None,
         dataset_path:          Optional[str]               = None,
         git_log_path:          Optional[str]               = None,
@@ -1218,19 +1294,25 @@ class KratosOrchestrator:
             dataset_path         = dataset_path,
             git_log_path         = git_log_path,
             execution_fingerprint = execution_fingerprint,
+            airflow_fingerprint   = airflow_fingerprint,
         )
         logger.info(f"[KRATOS] Routing: {routing.routing_rationale}")
 
         # ── Step 2: Run analyzers in parallel ─────────────────────────────
-        analyzer_coros = []
-        analyzer_keys  = []
+        analyzer_coros: List[Any] = []
+        analyzer_keys:  List[str] = []
 
-        if routing.invoke_log_analyzer and (execution_fingerprint or spark_log_path):
-            fp = execution_fingerprint  # caller must supply pre-built fingerprint
-            if fp:
-                orch = SparkOrchestrator(fp, self.llm_config)
-                analyzer_coros.append(orch.solve_problem(user_query))
-                analyzer_keys.append("log_analyzer")
+        # Spark log analyzer
+        if execution_fingerprint and any(t.agent_type == "spark_log_analyzer" for t in routing.tasks):
+            orch = SparkOrchestrator(execution_fingerprint, self.llm_config)
+            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_keys.append("log_analyzer")
+
+        # Airflow log analyzer
+        if airflow_fingerprint and any(t.agent_type == "airflow_log_analyzer" for t in routing.tasks):
+            orch = AirflowLogAnalyzerOrchestrator(airflow_fingerprint, self.llm_config)
+            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_keys.append("log_analyzer")
 
         if routing.invoke_code_analyzer and repo_path:
             orch = CodeAnalyzerOrchestrator(repo_path, self.llm_config)
