@@ -67,6 +67,7 @@ from agents import QueryUnderstandingAgent, RootCauseAgent, LLMConfig, AgentResp
 from agents.base import AgentType
 from agents.airflow_log_analyzer import AirflowLogAnalyzerAgent
 from agents.change_analyzer_agent import ChangeAnalyzerAgent
+from agents.infra_analyzer_agent import InfraAnalyzerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -795,6 +796,7 @@ class RoutingAgent:
         git_log_path:        Optional[str] = None,
         execution_fingerprint: Optional[ExecutionFingerprint] = None,
         airflow_fingerprint:   Optional[Dict[str, Any]] = None,
+        infra_fingerprint:     Optional[Dict[str, Any]] = None,
     ) -> RoutingDecision:
 
         """Produce a RoutingDecision synchronously (no LLM call needed for heuristic)."""
@@ -804,9 +806,10 @@ class RoutingAgent:
         invoke_code        = bool(repo_path or trigger == "compliance_scan")
         invoke_data        = bool(dataset_path or trigger == "data_quality")
         invoke_change      = bool(git_log_path or trigger == "code_change")
+        invoke_infra       = bool(infra_fingerprint or trigger == "infra_check")
 
         # Always run at least one log analyzer if nothing else matches
-        if not any([invoke_spark_log, invoke_airflow_log, invoke_code, invoke_data, invoke_change]):
+        if not any([invoke_spark_log, invoke_airflow_log, invoke_code, invoke_data, invoke_change, invoke_infra]):
             invoke_spark_log = True
 
         tasks: List[AgentTask] = []
@@ -858,6 +861,15 @@ class RoutingAgent:
                 priority         = priority,
                 source_data      = {"git_log_path": git_log_path},
             ))
+            priority += 1
+
+        if invoke_infra:
+            tasks.append(AgentTask(
+                agent_type       = "infra_analyzer",
+                task_description = "Analyse cluster/infrastructure metrics for resource saturation, executor loss, and autoscaling events",
+                priority         = priority,
+                source_data      = {"infra_fingerprint": "pre_built"},
+            ))
 
         rationale_parts = []
         if invoke_spark_log:   rationale_parts.append("Spark log present → Spark LogAnalyzer")
@@ -865,6 +877,7 @@ class RoutingAgent:
         if invoke_code:        rationale_parts.append("Repo path present → CodeAnalyzer")
         if invoke_data:        rationale_parts.append("Dataset path present → DataProfiler")
         if invoke_change:      rationale_parts.append("Git log present → ChangeAnalyzer")
+        if invoke_infra:       rationale_parts.append("Infra fingerprint present → InfraAnalyzer")
 
         logger.info(f"[ROUTING] {job_id}: {' | '.join(rationale_parts)}")
 
@@ -875,6 +888,7 @@ class RoutingAgent:
             invoke_code_analyzer   = invoke_code,
             invoke_data_profiler   = invoke_data,
             invoke_change_analyzer = invoke_change,
+            invoke_infra_analyzer  = invoke_infra,
             routing_rationale      = " | ".join(rationale_parts),
             tasks                  = tasks,
         )
@@ -1008,6 +1022,105 @@ class ChangeAnalyzerOrchestrator:
             raw_agent_responses      = {"change_analyzer": resp.model_dump()},
         )
 
+
+class InfraAnalyzerOrchestrator:
+    """
+    Analyses infrastructure / observability metrics from a cluster fingerprint dict.
+
+    Produces an AnalysisResult with ProblemType.RESOURCE_PRESSURE (or GENERAL when
+    the cluster is healthy).
+
+    Constructor:
+        infra_fingerprint : Dict[str, Any]  — see InfraAnalyzerAgent docstring for shape.
+        llm_config        : Optional[LLMConfig]
+
+    Demo end-to-end:
+        fingerprint = {
+            "cluster_id":       "prod-spark-01",
+            "environment":      "production",
+            "cpu_utilization":  87.5,
+            "memory_utilization": 91.0,
+            "total_workers":    20,
+            "available_workers": 8,
+            "queued_tasks":     310,
+            "autoscale_events": [{"direction": "down", "delta": 4,
+                                  "timestamp": "2026-02-25T08:30:00Z"}],
+        }
+        orch = InfraAnalyzerOrchestrator(fingerprint)
+        result = await orch.solve_problem("Why did the Spark job fail?")
+    """
+
+    def __init__(
+        self,
+        infra_fingerprint: Dict[str, Any],
+        llm_config: Optional[LLMConfig] = None,
+    ) -> None:
+        self.infra_fingerprint = infra_fingerprint
+        self.llm_config        = llm_config or LLMConfig()
+        self._agent            = InfraAnalyzerAgent(self.llm_config)
+
+    async def solve_problem(self, user_query: str) -> AnalysisResult:
+        resp = self._agent.analyze(fingerprint_data=self.infra_fingerprint)
+        cluster_id = self.infra_fingerprint.get("cluster_id", "unknown")
+        logger.info(f"[INFRA_ORCH] cluster={cluster_id}")
+
+        # ── Map findings text → ProblemType ───────────────────────────────
+        text = (resp.summary + " " + " ".join(resp.key_findings)).lower()
+        if "critical" in text and ("memory" in text or "oom" in text):
+            problem_type = ProblemType.MEMORY_PRESSURE
+        elif "critical" in text or "severe resource" in text:
+            problem_type = ProblemType.RESOURCE_PRESSURE
+        elif "high" in text and ("cpu" in text or "executor" in text or "scale" in text):
+            problem_type = ProblemType.RESOURCE_PRESSURE
+        else:
+            problem_type = ProblemType.GENERAL
+
+        # ── Build AgentFinding list ────────────────────────────────────────
+        findings: List[AgentFinding] = []
+        for f_txt in resp.key_findings:
+            fl = f_txt.lower()
+            if f_txt.startswith("CRITICAL"):
+                sev = Severity.CRITICAL
+            elif f_txt.startswith("HIGH"):
+                sev = Severity.HIGH
+            elif f_txt.startswith("MEDIUM"):
+                sev = Severity.MEDIUM
+            else:
+                sev = Severity.INFO
+            findings.append(AgentFinding(
+                agent_type   = "infra_analyzer",
+                finding_type = "infra_metric",
+                severity     = sev,
+                title        = f_txt[:80],
+                description  = f_txt,
+                recommendation = None,
+                evidence       = [],
+            ))
+
+        # ── Health score: deduced from severity metadata ───────────────────
+        meta_sev = resp.metadata.get("severity", "low")
+        health_score = {
+            "critical": 40.0,
+            "high":     65.0,
+            "medium":   80.0,
+            "low":      100.0,
+        }.get(meta_sev, 100.0)
+
+        return AnalysisResult(
+            problem_type      = problem_type,
+            user_query        = user_query,
+            executive_summary = resp.summary,
+            detailed_analysis = resp.explanation,
+            findings          = findings,
+            recommendations   = [],
+            health_score      = health_score,
+            confidence        = resp.confidence,
+            agents_used       = ["infra_analyzer"],
+            agent_sequence    = ["infra_analyzer"],
+            total_processing_time_ms = 0,
+            raw_agent_responses      = {"infra_analyzer": resp.model_dump()},
+        )
+
 # ============================================================================
 # TRIANGULATION AGENT
 # ============================================================================
@@ -1030,6 +1143,7 @@ class TriangulationAgent:
         code_result:   Optional[AnalysisResult] = None,
         data_result:   Optional[AnalysisResult] = None,
         change_result: Optional[AnalysisResult] = None,
+        infra_result:  Optional[AnalysisResult] = None,
     ) -> IssueProfile:
         correlations: List[CrossAgentCorrelation] = []
         all_results   = {
@@ -1037,6 +1151,7 @@ class TriangulationAgent:
             "code_analyzer":   code_result,
             "data_profiler":   data_result,
             "change_analyzer": change_result,
+            "infra_analyzer":  infra_result,
         }
         active_results = {k: v for k, v in all_results.items() if v is not None}
 
@@ -1113,6 +1228,34 @@ class TriangulationAgent:
                     },
                     affected_artifacts = [],
                 ))
+
+        # ── Pattern 4: Infra resource pressure + execution failure ────────
+        if log_result and infra_result:
+            log_has_exec_issue = log_result.problem_type in (
+                ProblemType.EXECUTION_FAILURE, ProblemType.MEMORY_PRESSURE,
+                ProblemType.PERFORMANCE, ProblemType.DATA_SKEW,
+            )
+            infra_has_pressure = infra_result.problem_type in (
+                ProblemType.RESOURCE_PRESSURE, ProblemType.MEMORY_PRESSURE,
+            )
+            if log_has_exec_issue and infra_has_pressure:
+                correlations.append(CrossAgentCorrelation(
+                    correlation_id      = str(uuid.uuid4())[:8],
+                    contributing_agents = ["log_analyzer", "infra_analyzer"],
+                    pattern             = (
+                        "Cluster-level resource saturation (CPU/memory/executor pressure) "
+                        "coincides with Spark execution issues. "
+                        "Infrastructure constraints are likely a root cause or amplifier."
+                    ),
+                    severity           = Severity.CRITICAL,
+                    confidence         = 0.84,
+                    evidence           = {
+                        "log_problem":   log_result.problem_type.value,
+                        "infra_problem": infra_result.problem_type.value,
+                    },
+                    affected_artifacts = [],
+                ))
+        # ── Aggregate health & dominant problem ───────────────────────────
         scores = [r.health_score for r in active_results.values()]
         overall_health = sum(scores) / len(scores) if scores else 100.0
 
@@ -1158,6 +1301,7 @@ class TriangulationAgent:
             code_analysis          = code_result,
             data_analysis          = data_result,
             change_analysis        = change_result,
+            infra_analysis         = infra_result,
             correlations           = correlations,
             lineage_map            = lineage_map,
             overall_health_score   = round(overall_health, 2),
@@ -1194,6 +1338,7 @@ class RecommendationAgent:
             "code_analyzer":   issue_profile.code_analysis,
             "data_profiler":   issue_profile.data_analysis,
             "change_analyzer": issue_profile.change_analysis,
+            "infra_analyzer":  issue_profile.infra_analysis,
         }
 
         for agent_name, result in agent_result_map.items():
@@ -1332,6 +1477,7 @@ class KratosOrchestrator:
         repo_path:             Optional[str]               = None,
         dataset_path:          Optional[str]               = None,
         git_log_path:          Optional[str]               = None,
+        infra_fingerprint:     Optional[Dict[str, Any]]    = None,
         job_id:                Optional[str]               = None,
     ) -> RecommendationReport:
         """
@@ -1341,6 +1487,22 @@ class KratosOrchestrator:
             report = await kratos.run(
                 user_query="Why did my job fail?",
                 execution_fingerprint=my_fingerprint,
+            )
+
+        Infra / observability demo:
+            report = await kratos.run(
+                user_query="Why did the job fail?",
+                execution_fingerprint=my_fingerprint,
+                infra_fingerprint={
+                    "cluster_id": "prod-spark-01",
+                    "cpu_utilization": 88.0,
+                    "memory_utilization": 92.5,
+                    "total_workers": 20,
+                    "available_workers": 7,
+                    "queued_tasks": 310,
+                    "autoscale_events": [{"direction": "down", "delta": 4,
+                                         "timestamp": "2026-02-25T08:30:00Z"}],
+                },
             )
         """
         job_id = job_id or str(uuid.uuid4())[:8]
@@ -1358,6 +1520,7 @@ class KratosOrchestrator:
             git_log_path         = git_log_path,
             execution_fingerprint = execution_fingerprint,
             airflow_fingerprint   = airflow_fingerprint,
+            infra_fingerprint     = infra_fingerprint,
         )
         logger.info(f"[KRATOS] Routing: {routing.routing_rationale}")
 
@@ -1392,6 +1555,11 @@ class KratosOrchestrator:
             analyzer_coros.append(orch.solve_problem(user_query))
             analyzer_keys.append("change_analyzer")
 
+        if any(t.agent_type == "infra_analyzer" for t in routing.tasks) and infra_fingerprint:
+            orch = InfraAnalyzerOrchestrator(infra_fingerprint, self.llm_config)
+            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_keys.append("infra_analyzer")
+
         results_list = await asyncio.gather(*analyzer_coros, return_exceptions=True)
 
         analyzer_results: Dict[str, Optional[AnalysisResult]] = {}
@@ -1413,6 +1581,7 @@ class KratosOrchestrator:
             code_result   = analyzer_results.get("code_analyzer"),
             data_result   = analyzer_results.get("data_profiler"),
             change_result = analyzer_results.get("change_analyzer"),
+            infra_result  = analyzer_results.get("infra_analyzer"),
         )
 
         # ── Step 4: Recommend ─────────────────────────────────────────────

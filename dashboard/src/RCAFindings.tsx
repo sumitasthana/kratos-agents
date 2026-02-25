@@ -86,6 +86,7 @@ type IssueProfileT = {
   code_analysis:           AnalysisResultT | null;
   data_analysis:           AnalysisResultT | null;
   change_analysis:         AnalysisResultT | null;
+  infra_analysis:          AnalysisResultT | null;
   correlations:            CrossAgentCorrelationT[];
   lineage_map:             Record<string, string[]>;
   overall_health_score:    number;
@@ -782,6 +783,7 @@ const ANALYZER_META: Record<string, { label: string; icon: string }> = {
   code_analysis:   { label: "Code Analyzer",   icon: "🔍" },
   data_analysis:   { label: "Data Profiler",   icon: "📊" },
   change_analysis: { label: "Change Analyzer", icon: "🔀" },
+  infra_analysis:  { label: "Infra Analyzer",   icon: "🖥️" },
 };
 
 function AnalyzerStrip({ issueProfile }: { issueProfile: IssueProfileT }) {
@@ -793,6 +795,7 @@ function AnalyzerStrip({ issueProfile }: { issueProfile: IssueProfileT }) {
       { key: "code_analysis",   result: issueProfile.code_analysis },
       { key: "data_analysis",   result: issueProfile.data_analysis },
       { key: "change_analysis", result: issueProfile.change_analysis },
+      { key: "infra_analysis",  result: issueProfile.infra_analysis },
     ] as { key: string; result: AnalysisResultT | null }[]
   ).filter((a): a is { key: string; result: AnalysisResultT } => a.result != null);
 

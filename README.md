@@ -1,3 +1,36 @@
+
+---
+
+# Kratos Agents
+
+## Multi-Agent Root Cause Analysis for Modern Data Platforms
+
+> Intelligent, multi-agent RCA system for Spark, Airflow, code changes, data quality, and infrastructure — with a production-ready React dashboard.
+
+---
+
+## 🚀 Overview
+
+Kratos is a **multi-agent orchestration system** that performs automated root cause analysis (RCA) across distributed data platforms.
+
+It ingests:
+
+* Spark execution logs
+* Airflow task logs
+* Dataset snapshots
+* Git commit history
+* (Planned) Infrastructure metrics
+
+It then:
+
+1. Routes inputs to specialized analyzers
+2. Triangulates cross-domain signals
+3. Generates structured IssueProfiles
+4. Produces prioritized RecommendationReports
+5. Renders results in a React dashboard
+
+This is not a single-agent LLM wrapper.
+It is a **deterministic orchestration layer coordinating multiple analyzers**.
 # Kratos
 
 **Your AI-powered assistant for understanding Spark jobs, data pipelines, and code dataflow — all in plain English.**
@@ -97,177 +130,197 @@ Kratos ingests Spark execution logs, generates an **ExecutionFingerprint**, and 
 
 ---
 
-## Dashboard Preview
+# 🧠 What Kratos Analyzes
 
-### Healthy Execution
-![Healthy](screenshots/Healthy.png)
-Zero failures, zero spill, health score 100/100. Confidence score driven by data completeness and signal strength — not hardcoded.
-
-### Memory Pressure
-![Memory Pressure](screenshots/Memory_pressure.png)
-8 GB disk spill, 3 failed tasks. Score penalty breakdown shows Task Failures −10pts + Memory Pressure −15pts. Executive Summary parsed into Data Flow, Key Operations, and Partitioning sections.
-
-### Execution Failure
-![Execution Failure](screenshots/Execution_Failure.png)
-Single task failure with 0% success rate. Task Failures −40pts penalty dominates. No shuffle or memory involvement — classified as `EXECUTION_FAILURE` by the health-score derivation layer.
+| Domain          | Input            | Agent                                    | Output                       |
+| --------------- | ---------------- | ---------------------------------------- | ---------------------------- |
+| Spark           | Event logs       | RootCauseAgent + QueryUnderstandingAgent | ExecutionFingerprint         |
+| Airflow         | Task logs        | AirflowLogAnalyzerAgent                  | Task state analysis          |
+| Data            | Dataset snapshot | DataProfilerAgent                        | Null spikes, schema drift    |
+| Code            | Git history      | ChangeAnalyzerAgent                      | Churn risk, contributor silo |
+| Infra (Planned) | Cluster metrics  | InfraAnalyzerAgent                       | Resource pressure patterns   |
 
 ---
 
-## Architecture
+# 🏗 Architecture
 
 ```
-
-Spark Event Log
-│
-▼
-ExecutionFingerprint
-├── metrics.execution_summary  (tasks, spill, shuffle, duration)
-├── metrics.anomalies
-├── semantic.dag               (stages, operations)
-└── context.spark_config
-│
-▼
-SmartOrchestrator
-├── _classify_problem_from_query()   → initial ProblemType (keyword heuristic)
-├── _analyze_fingerprint_characteristics() → hints dict
-├── _plan_agent_execution()          → ordered List[AgentTask]
-│
-├── RootCauseAgent          → health score, penalty breakdown, key findings
-├── QueryUnderstandingAgent → DAG explanation, data flow, key operations
-│
-├── _derive_problem_type_from_health()  → final ProblemType (overrides initial)
-├── _compute_confidence()               → real signal-based score (not hardcoded)
-└── _synthesize_results()              → AnalysisResult
-│
-▼
-RCAFindings.tsx  (React dashboard)
-├── LogStatusCard      — problem type + category badge
-├── ConfidenceCard     — computed confidence %
-├── HealthGaugeCard    — SVG ring gauge
-├── ScoreBreakdownBar  — penalty stacked bar
-├── KPIStrip           — health / spill / failures / success rate / shuffle / duration
-├── ExecutiveSummary   — parsed intro + named sections (Data Flow, Key Operations…)
-├── FindingCard        — severity badge + labeled rows + green FIX block
-└── Recommendations    — numbered actionable list
-
+KratosOrchestrator
+    │
+    ▼
+RoutingAgent
+    │
+    ├── SparkOrchestrator
+    ├── AirflowLogAnalyzerOrchestrator
+    ├── CodeAnalyzerOrchestrator
+    ├── DataProfilerOrchestrator
+    ├── ChangeAnalyzerOrchestrator
+    └── InfraAnalyzerOrchestrator (planned)
+            │
+            ▼
+    TriangulationAgent
+            │
+            ▼
+    RecommendationAgent
+            │
+            ▼
+    RecommendationReport
+            │
+            ▼
+    React Dashboard (RCAFindings)
 ```
+
+Each analyzer produces an `AnalysisResult`.
+
+The **TriangulationAgent** merges results into a unified `IssueProfile`:
+
+* dominant_problem_type
+* overall_health_score
+* overall_confidence
+* analyzer-specific findings
+* cross-agent correlations
 
 ---
 
-## Problem Types
+# 📊 Dashboard
 
-| Type | Trigger | Color |
-|---|---|---|
-| `HEALTHY` | No penalties, all tasks succeeded | Green |
-| `EXECUTION_FAILURE` | Task failure penalty dominates (≥ 40%) | Red |
-| `MEMORY_PRESSURE` | Memory/spill penalty dominates | Purple |
-| `SHUFFLE_OVERHEAD` | Shuffle penalty dominates | Blue |
-| `DATA_SKEW` | Skew penalty dominates | Yellow |
-| `PERFORMANCE` | Multiple equal causes, no single dominant | Amber |
-| `LINEAGE` | Query/DAG explanation requested | Teal |
-| `GENERAL` | No clear classification | Grey |
+The Vite + React dashboard provides:
 
----
+* Run history sidebar
+* Health score visualization
+* Analyzer status strip
+* Expandable findings
+* Cross-agent correlations
+* Executive summary
+* Prioritized fixes
 
-## Confidence Scoring
-
-Replaced the hardcoded `0.90` agent value with a four-signal computed score:
-
-| Signal | Max Points | What it measures |
-|---|---|---|
-| Data completeness | 30 | Tasks, stages, duration, spill, shuffle, anomalies present |
-| Signal strength | 30 | Dominance ratio of the top penalty (decisive vs ambiguous) |
-| Agent agreement | 20 | How many agents ran and succeeded |
-| Cause clarity | 20 | Does numeric evidence match the classified problem type |
-| **Floor** | — | Minimum 0.40 for any completed analysis |
+The backend remains UI-agnostic.
+All visual interpretation is handled by React.
 
 ---
 
-## Finding Cards
+# 🏷 Problem Types
 
-Each finding has three visual layers:
+Kratos uses standardized classifications across agents:
 
-```
-
-┌─ Task Failures                               [HIGH] ──┐
-│  Symptom   │ 3 out of 160 tasks failed               │
-│  Root Cause│ Likely OOM / insufficient executor mem  │
-│  Impact    │ Retries triggered, increased duration   │
-├────────────────────────────────────────────────────── ┤
-│  FIX  Review Spark logs for OOM. Increase executor   │
-│       memory or optimize memory usage.               │
-└────────────────────────────────────────────────────── ┘
-
-```
-
-- Severity inferred from **title + description only** — never from the fix text
-- Generic titles (`Issue`, `Analysis`, `Note`) are **downgraded** from CRITICAL → HIGH unless true crash/OOM language is present
-- `Recommended Fix` rows are routed to `finding.recommendation`, rendered in green — never part of findings count or severity
+| Type               | Description                          |
+| ------------------ | ------------------------------------ |
+| HEALTHY            | No anomalies detected                |
+| EXECUTION_FAILURE  | Spark task failures dominate         |
+| MEMORY_PRESSURE    | Spill or OOM patterns                |
+| SHUFFLE_OVERHEAD   | Excessive shuffle                    |
+| DATA_SKEW          | Skew penalties dominate              |
+| NULL_SPIKE         | Data profiler detected null increase |
+| SCHEMA_DRIFT       | Column or type drift                 |
+| CHURN_SPIKE        | Large change window in Git           |
+| CONTRIBUTOR_SILO   | Single-author dominance              |
+| REGRESSION_RISK    | Risky change before failure          |
+| CORRELATED_FAILURE | Multi-agent pattern detected         |
+| GENERAL            | No dominant issue                    |
 
 ---
 
-## Project Structure
+# 📐 Confidence Scoring (Spark Path)
+
+Confidence is derived from:
+
+| Signal            | Max Points |
+| ----------------- | ---------- |
+| Data completeness | 30         |
+| Signal dominance  | 30         |
+| Agent agreement   | 20         |
+| Cause clarity     | 20         |
+
+Minimum floor: **0.40**
+
+No hardcoded confidence values.
+
+---
+
+# 🔗 Cross-Agent Correlation
+
+The Triangulation layer detects patterns such as:
+
+* Churn spike + Spark failure
+* Compliance gap + null spike
+* Infra resource saturation + OOM
+* Schema drift + ETL regression
+
+These are rendered as `CrossAgentCorrelation` objects in the dashboard.
+
+---
+
+# 📂 Project Structure
 
 ```
-
 kratos-agents/
 ├── src/
-│   ├── orchestrator.py          # SmartOrchestrator + all helpers
-│   ├── schemas.py               # Pydantic models (ExecutionFingerprint, AnalysisResult…)
-│   ├── agent_coordination.py    # AgentContext, SharedFinding
+│   ├── orchestrator.py
+│   ├── schemas.py
+│   ├── agent_coordination.py
 │   ├── agents/
-│   │   ├── base.py              # BaseAgent, AgentType enum
-│   │   └── root_cause.py        # RootCauseAgent
-│   ├── cli.py                   # CLI entry point
-│   ├── context_generator.py     # Fingerprint context builder
-│   └── semantic_generator.py    # DAG semantic layer
+│   │   ├── base.py
+│   │   ├── root_cause.py
+│   │   ├── query_understanding.py
+│   │   ├── airflow_log_analyzer.py
+│   │   ├── data_profiler_agent.py
+│   │   ├── change_analyzer_agent.py
+│   │   └── infra_analyzer_agent.py (planned)
+│   ├── cli.py
+│   ├── context_generator.py
+│   └── semantic_generator.py
 │
 ├── dashboard/
 │   ├── src/
-│   │   ├── App.tsx              # Main app shell, run sidebar
-│   │   └── RCAFindings.tsx      # Full RCA findings UI component
+│   │   ├── App.tsx
+│   │   └── RCAFindings.tsx
+│   ├── server.js
 │   └── package.json
 │
 ├── scripts/
 │   └── multi/
-│       ├── collect_test_logs.py
-│       ├── generate_spark_event_logs.py
-│       └── setup_log_storage.py
 │
-├── logs/                        # Runtime log storage (gitignored)
+├── logs/
+├── screenshots/
 ├── requirements.txt
 └── README.md
-
-````
+```
 
 ---
 
-## Setup
+# ⚙ Setup
 
-### Backend
+## Backend
 
 ```bash
 git clone https://github.com/sumitasthana/kratos-agents.git
 cd kratos-agents
 
-python -m venv venv311
-source venv311/bin/activate        # Mac/Linux
-venv311\Scripts\activate           # Windows PowerShell
+python -m venv venv
+source venv/bin/activate   # Mac/Linux
+venv\Scripts\activate      # Windows
 
 pip install -r requirements.txt
-````
-
-### Dashboard
-
-```bash
-cd dashboard
-npm install
-npm run dev        # development — http://localhost:5173
-npm run build      # production build → dist/
 ```
 
 ---
 
+## Dashboard
+
+```bash
+cd dashboard
+npm install
+
+npm run dev      # http://localhost:5173
+npm run build
+npm start        # http://localhost:4173
+```
+
+---
+
+# ▶ Running Kratos
+
+## Spark
 ## Requirements
 
 - Python 3.10+
@@ -328,53 +381,63 @@ A:
 ## Running
 
 ```bash
-# Analyse a Spark event log
-python -m src.cli orchestrate --log-path logs/raw/spark_events/your_log.json
-
-# Run with custom query
 python -m src.cli orchestrate \
-  --log-path logs/raw/spark_events/your_log.json \
-  --query "Why is my job slow?"
-
-# Point dashboard at your runs folder
-# Edit dashboard/src/App.tsx → LOCAL_RUNS_PATH
+  --log-path logs/raw/spark_events/log.json
 ```
 
----
-
-## Key Design Decisions
-
-* **Two-phase problem classification** — keyword heuristic for initial routing, health-score metadata for final override after RCA completes
-* **Shape A + Shape B finding grouper** — handles both explicit section headers and repeated `Symptom:` runs from LLM output
-* **Negation-aware severity** — `_NEGATION_PATTERNS` checked before keyword banks to prevent `"0 failed tasks"` → CRITICAL
-* **No emoji in backend** — prefix labels like `"Memory Pressure: "` are plain text; icons assigned by the frontend `getLogStatusMeta()`
-
----
-## Contributing
+## With Question
 
 ```bash
-# Branch naming convention
-git checkout -b arunesh/<feature-name>
-
-# Examples used in this repo
-git checkout -b arunesh/sparkanalyzer
-git checkout -b arunesh/rca-confidence-scoring
-git checkout -b arunesh/ui-severity-fixes
-
-# Commit format (conventional commits)
-git commit -m "feat(scope): short description
-
-- bullet for each logical change
-- keep scope to one of: rca, ui, orchestrator, infra, docs"
-
-# Push and open PR
-git push -u origin arunesh/<feature-name>
-# GitHub prints the PR URL directly in the terminal output — use it
+python -m src.cli orchestrate \
+  --log-path logs/raw/spark_events/log.json \
+  --query "Why is my job slow?"
 ```
+
+## Airflow
+
+```bash
+python -m src.smoke_test_airflow
+```
+
+## With Data + Git
+
+```bash
+python -m src.smoke_test \
+  --dataset-path dataset.parquet \
+  --git-log-path change_fingerprint.json
+```
+
+Open the dashboard and inspect analyzer cards and correlations.
 
 ---
 
-## Authors
+# 🧩 Design Principles
 
-* **sumitasthana** — project lead / repo owner
-* **AruneshDev** — orchestrator engine, RCA UI, confidence scoring
+* Deterministic orchestration over single-LLM reasoning
+* Separation of analysis and presentation
+* Negation-aware severity detection
+* Two-phase classification logic
+* Explicit schemas via Pydantic
+* Expandable multi-agent architecture
+
+---
+
+# 🛠 Contributing
+
+```bash
+git checkout -b arunesh/<feature-name>
+
+git commit -m "feat(orchestrator): add infra analyzer wiring
+
+- describe change
+- keep scope focused"
+```
+
+Open a pull request after pushing.
+
+---
+
+# 👥 Authors
+
+* **sumitasthana** — Project Lead
+* **AruneshDev** — Orchestration Engine, Multi-Agent RCA, Dashboard 

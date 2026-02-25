@@ -59,6 +59,7 @@ class AgentType(str, Enum):
         CODE_ANALYZER       static analysis + FDIC compliance
         DATA_PROFILER       dataset quality + schema drift
         CHANGE_ANALYZER     git commit history + churn
+        INFRA_ANALYZER      infrastructure / observability metrics (CPU, mem, network, autoscaling)
 
     Layer 2 — Synthesis:
         TRIANGULATION       cross-agent correlation + lineage map
@@ -81,6 +82,7 @@ class AgentType(str, Enum):
     CODE_ANALYZER       = "code_analyzer"
     DATA_PROFILER       = "data_profiler"
     CHANGE_ANALYZER     = "change_analyzer"
+    INFRA_ANALYZER      = "infra_analyzer"
 
     # ── Layer 2 ───────────────────────────────────────────────────────────
     TRIANGULATION       = "triangulation"
@@ -109,6 +111,7 @@ class FingerprintDomain(str, Enum):
     CODE     = "code"      # CodeFingerprint        → CodeAnalyzerAgent
     DATA     = "data"      # DataFingerprint        → DataProfilerAgent
     CHANGE   = "change"    # ChangeFingerprint      → ChangeAnalyzerAgent
+    INFRA    = "infra"     # Dict[str, Any]         → InfraAnalyzerAgent
     ISSUE    = "issue"     # IssueProfile           → TriangulationAgent / RecommendationAgent
     GENERIC  = "generic"   # raw dict               → RoutingAgent
 

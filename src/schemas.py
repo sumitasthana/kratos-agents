@@ -38,6 +38,7 @@ class ProblemType(str, Enum):
     PERFORMANCE        = "performance"
     EXECUTION_FAILURE  = "execution_failure"
     MEMORY_PRESSURE    = "memory_pressure"
+    RESOURCE_PRESSURE  = "resource_pressure"   # infra/cluster-level saturation
     SHUFFLE_OVERHEAD   = "shuffle_overhead"
     DATA_SKEW          = "data_skew"
 
@@ -530,6 +531,7 @@ class RoutingDecision(BaseModel):
     invoke_code_analyzer:   bool = False
     invoke_data_profiler:   bool = False
     invoke_change_analyzer: bool = False
+    invoke_infra_analyzer:  bool = False
 
     routing_rationale: str           = Field(..., description="LLM-generated explanation of agent selection")
     tasks:             List[AgentTask] = Field(..., description="Ordered execution plan for KratosOrchestrator")
@@ -566,6 +568,7 @@ class IssueProfile(BaseModel):
     code_analysis:   Optional[AnalysisResult] = None
     data_analysis:   Optional[AnalysisResult] = None
     change_analysis: Optional[AnalysisResult] = None
+    infra_analysis:  Optional[AnalysisResult] = None
 
     correlations: List[CrossAgentCorrelation] = Field(default_factory=list)
 
