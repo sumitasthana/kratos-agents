@@ -4,12 +4,15 @@ Spark Fingerprint Analysis Agents.
 Multi-agent system for intelligent analysis of Spark execution fingerprints.
 Each agent specializes in a specific analysis domain.
 
-Agents:
+Current agents:
 - QueryUnderstandingAgent: Explains physical/logical plans in natural language
-- (Future) RootCauseAgent: Identifies root causes of anomalies
-- (Future) OptimizationAgent: Suggests performance optimizations
-- (Future) RegressionAgent: Explains performance regressions
-- (Future) OrchestratorAgent: Routes requests to appropriate agents
+- RootCauseAgent: Identifies likely root causes of anomalies
+- GitDiffDataFlowAgent: Analyzes git diffs and dataflow impact
+
+Planned agents (to be added in separate modules):
+- OptimizationAgent: Suggests performance optimizations
+- RegressionAgent: Explains performance regressions
+- OrchestratorAgent: Routes requests to appropriate agents
 """
 
 from .base import BaseAgent, AgentResponse, LLMConfig, AgentType
