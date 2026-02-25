@@ -57,6 +57,44 @@ type ParsedSummary = {
   sections: SummarySection[];
 };
 
+// ── New types: mirrors Pydantic RecommendationReport / IssueProfile ───────────
+
+type AnalysisResultT = {
+  problem_type:      string;
+  health_score:      number;
+  confidence:        number;
+  findings:          Finding[];
+  recommendations:   string[];
+  executive_summary: string;
+};
+
+type CrossAgentCorrelationT = {
+  correlation_id:      string;
+  contributing_agents: string[];
+  pattern:             string;
+  severity:            string;
+  confidence:          number;
+  evidence:            Record<string, any>;
+  affected_artifacts:  string[];
+};
+
+type IssueProfileT = {
+  job_id:                  string;
+  generated_at:            string;
+  dominant_problem_type:   string;
+  log_analysis:            AnalysisResultT | null;
+  code_analysis:           AnalysisResultT | null;
+  data_analysis:           AnalysisResultT | null;
+  change_analysis:         AnalysisResultT | null;
+  correlations:            CrossAgentCorrelationT[];
+  lineage_map:             Record<string, string[]>;
+  overall_health_score:    number;
+  overall_confidence:      number;
+  agents_invoked:          string[];
+  total_findings_count:    number;
+  critical_findings_count: number;
+};
+
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -736,6 +774,229 @@ function AgentsFooter({ data }: { data: any }) {
 }
 
 
+// ── Analyzer strip ────────────────────────────────────────────────────────────
+
+
+const ANALYZER_META: Record<string, { label: string; icon: string }> = {
+  log_analysis:    { label: "Log Analyzer",    icon: "📋" },
+  code_analysis:   { label: "Code Analyzer",   icon: "🔍" },
+  data_analysis:   { label: "Data Profiler",   icon: "📊" },
+  change_analysis: { label: "Change Analyzer", icon: "🔀" },
+};
+
+function AnalyzerStrip({ issueProfile }: { issueProfile: IssueProfileT }) {
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const analyzers: { key: string; result: AnalysisResultT }[] = (
+    [
+      { key: "log_analysis",    result: issueProfile.log_analysis },
+      { key: "code_analysis",   result: issueProfile.code_analysis },
+      { key: "data_analysis",   result: issueProfile.data_analysis },
+      { key: "change_analysis", result: issueProfile.change_analysis },
+    ] as { key: string; result: AnalysisResultT | null }[]
+  ).filter((a): a is { key: string; result: AnalysisResultT } => a.result != null);
+
+  if (analyzers.length === 0) return null;
+
+  return (
+    <Card style={{ marginBottom: 16, overflow: "hidden" }}>
+      {/* Header label */}
+      <div style={{
+        padding: "8px 16px 7px",
+        borderBottom: `1px solid ${COLOR.borderMuted}`,
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: COLOR.textMuted,
+          textTransform: "uppercase", letterSpacing: 1,
+        }}>
+          Analyzers
+        </span>
+        <span style={{
+          fontSize: 10, color: COLOR.textMuted, background: COLOR.borderMuted,
+          borderRadius: 4, padding: "1px 7px", fontWeight: 600,
+        }}>
+          {analyzers.length}
+        </span>
+      </div>
+
+      {/* One column per active analyzer */}
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
+        {analyzers.map(({ key, result }, i) => {
+          const m      = getLogStatusMeta(result.problem_type);
+          const meta   = ANALYZER_META[key] ?? { label: key, icon: "—" };
+          const isOpen = expandedKey === key;
+          const hColor = result.health_score >= 80 ? "#16a34a"
+            : result.health_score >= 60 ? "#d97706" : "#dc2626";
+
+          return (
+            <div
+              key={key}
+              style={{
+                flex: "1 1 180px", minWidth: 160,
+                borderRight: i < analyzers.length - 1 ? `1px solid ${COLOR.border}` : "none",
+              }}
+            >
+              {/* Header button */}
+              <button
+                onClick={() => setExpandedKey(isOpen ? null : key)}
+                style={{
+                  width: "100%", background: "transparent", border: "none",
+                  padding: "11px 16px", cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                  <span style={{ fontSize: 12, lineHeight: 1 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: COLOR.textPrimary, flex: 1 }}>
+                    {meta.label}
+                  </span>
+                  <span style={{ fontSize: 10, color: isOpen ? COLOR.blue : COLOR.textMuted }}>
+                    {isOpen ? "▾" : "▸"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700,
+                    background: m.bg, border: `1px solid ${m.border}`, color: m.text,
+                    textTransform: "uppercase", letterSpacing: 0.4,
+                  }}>
+                    {result.problem_type.replace(/_/g, " ")}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: hColor }}>
+                    {Math.round(result.health_score)}/100
+                  </span>
+                </div>
+              </button>
+
+              {/* Expanded findings */}
+              {isOpen && (
+                <div style={{
+                  borderTop: `1px solid ${COLOR.borderMuted}`,
+                  background: COLOR.bg,
+                  padding: "8px 14px 12px",
+                }}>
+                  {(result.findings ?? []).length === 0 ? (
+                    <div style={{ fontSize: 11, color: COLOR.textMuted, fontStyle: "italic", padding: "4px 0" }}>
+                      No findings.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(result.findings ?? []).slice(0, 5).map((f, fi) => {
+                        const sev = resolvedSeverity(f);
+                        const sc  = getSeverityStyle(sev);
+                        return (
+                          <div key={fi} style={{
+                            padding: "7px 10px", borderRadius: 6,
+                            background: sc.bg, border: `1px solid ${sc.border}`,
+                            borderLeft: `3px solid ${sc.badge}`,
+                          }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: f.description ? 3 : 0 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: COLOR.textPrimary, flex: 1 }}>
+                                {f.title || f.finding_type || `Finding ${fi + 1}`}
+                              </span>
+                              <SeverityBadge severity={sev} />
+                            </div>
+                            {f.description && (
+                              <div style={{ fontSize: 11, color: COLOR.textSecond, lineHeight: 1.5 }}>
+                                {f.description.length > 160
+                                  ? f.description.slice(0, 160) + "…"
+                                  : f.description}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {(result.findings ?? []).length > 5 && (
+                        <div style={{ fontSize: 11, color: COLOR.textMuted, textAlign: "center", paddingTop: 4 }}>
+                          +{result.findings.length - 5} more findings
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+
+// ── Correlations section ──────────────────────────────────────────────────────
+
+
+function CorrelationsSection({ correlations }: { correlations: CrossAgentCorrelationT[] }) {
+  const [open, setOpen] = useState(true);
+  if (!correlations || correlations.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionToggleHeader
+        title="Correlations"
+        count={correlations.length}
+        open={open}
+        onToggle={() => setOpen(!open)}
+      />
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {correlations.map((c, i) => {
+            const sev = (c.severity || "info").toLowerCase();
+            const sc  = getSeverityStyle(sev);
+            const conf = c.confidence <= 1 ? Math.round(c.confidence * 100) : Math.round(c.confidence);
+            return (
+              <div key={c.correlation_id || i} style={{
+                borderRadius: 8, overflow: "hidden",
+                border:     `1px solid ${sc.border}`,
+                borderLeft: `3px solid ${sc.badge}`,
+              }}>
+                {/* Pattern text + severity badge */}
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  alignItems: "flex-start", gap: 12,
+                  padding: "10px 14px", background: sc.bg,
+                }}>
+                  <p style={{ margin: 0, fontSize: 13, color: COLOR.textPrimary, lineHeight: 1.6, flex: 1 }}>
+                    {c.pattern}
+                  </p>
+                  <SeverityBadge severity={sev} />
+                </div>
+                {/* Contributing agents + confidence */}
+                <div style={{
+                  padding: "7px 14px", background: COLOR.surface,
+                  borderTop: `1px solid ${sc.border}`,
+                  display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, color: COLOR.textMuted,
+                    textTransform: "uppercase", letterSpacing: 0.6, marginRight: 4,
+                  }}>
+                    Agents
+                  </span>
+                  {(c.contributing_agents ?? []).map((a, ai) => (
+                    <span key={ai} style={{
+                      padding: "2px 9px", borderRadius: 5,
+                      fontSize: 10, fontWeight: 600,
+                      background: COLOR.blueBg, border: `1px solid ${COLOR.blueBorder}`, color: COLOR.blue,
+                    }}>
+                      {a.replace(/_/g, " ")}
+                    </span>
+                  ))}
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: COLOR.textMuted }}>
+                    {conf}% confidence
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 
@@ -752,25 +1013,57 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
     );
   }
 
-  const summary                   = orchestratorData.executive_summary || orchestratorData.summary || "";
-  const recommendations: string[] = orchestratorData.recommendations   || [];
-  const structFindings: Finding[] = orchestratorData.findings           || [];
-  const keyFindings: string[]     = orchestratorData.key_findings       || [];
-  const problemType               = orchestratorData.problem_type       || "unknown";
-  const confidence                = formatConfidence(orchestratorData.confidence ?? 0);
+  // Detect new RecommendationReport format (has issue_profile) vs legacy AnalysisResult
+  const issueProfile: IssueProfileT | null = orchestratorData.issue_profile ?? null;
 
+  // ── Executive summary / findings / recommendations ─────────────────────────
+  const summary: string =
+    orchestratorData.executive_summary ||
+    orchestratorData.summary           ||
+    issueProfile?.log_analysis?.executive_summary ||
+    "";
+
+  const recommendations: string[] =
+    orchestratorData.recommendations ||
+    ((orchestratorData.prioritized_fixes ?? []) as any[])
+      .map((f: any) => `[${f.title}] ${f.description}`) ||
+    [];
+
+  const structFindings: Finding[] =
+    orchestratorData.findings            ||
+    issueProfile?.log_analysis?.findings ||
+    [];
+
+  const keyFindings: string[] = orchestratorData.key_findings || [];
+
+  // ── Problem type: prefer log_analysis so LogStatusCard maps correctly ──────
+  const problemType: string =
+    issueProfile?.log_analysis?.problem_type ||
+    issueProfile?.dominant_problem_type      ||
+    orchestratorData.problem_type            ||
+    "unknown";
+
+  // ── Confidence: issue_profile uses 0-1 → formatConfidence normalises both ─
+  const confidence: number = issueProfile
+    ? formatConfidence(issueProfile.overall_confidence)
+    : formatConfidence(orchestratorData.confidence ?? 0);
+
+  // ── Health score: prefer issue_profile overall, fallback to nested path ───
   const healthScore: number | null =
-    orchestratorData?.raw_agent_responses?.root_cause?.metadata?.health_score?.overall_score ?? null;
+    issueProfile?.overall_health_score ??
+    orchestratorData?.raw_agent_responses?.root_cause?.metadata?.health_score?.overall_score ??
+    null;
+
   const breakdown: Record<string, number> =
     orchestratorData?.raw_agent_responses?.root_cause?.metadata?.health_score?.breakdown ?? {};
 
-  const agentsUsed: string[] = orchestratorData.agents_used || [];
+  const agentsUsed: string[] =
+    orchestratorData.agents_used || issueProfile?.agents_invoked || [];
+
   const totalTimeSec =
     orchestratorData.total_processing_time_ms != null
       ? (orchestratorData.total_processing_time_ms / 1000).toFixed(2)
       : null;
-
-  // Sort + filter using resolvedSeverity so corrected severity drives both
   const filteredFindings = structFindings
     .filter(f => severityFilter === "all" || resolvedSeverity(f) === severityFilter)
     .sort((a, b) =>
@@ -798,6 +1091,9 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
       {/* ── KPI strip ── */}
       <KPIStrip data={orchestratorData} />
 
+      {/* ── Analyzer strip (new analyzers: log, code, data, change) ── */}
+      {issueProfile && <AnalyzerStrip issueProfile={issueProfile} />}
+
       {/* ── Agents top bar ── */}
       {agentsUsed.length > 0 && (
         <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
@@ -823,6 +1119,11 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
           </div>
           <ExecutiveSummary raw={summary} />
         </div>
+      )}
+
+      {/* ── Cross-agent correlations ── */}
+      {issueProfile && issueProfile.correlations?.length > 0 && (
+        <CorrelationsSection correlations={issueProfile.correlations} />
       )}
 
       {/* ── Structured findings (collapsible + filter) ── */}

@@ -86,6 +86,35 @@ app.get("/api/file", (req, res) => {
   }
 });
 
+// Clear all run history: removes every manifest and resets latest.json
+app.delete("/api/clear-history", (req, res) => {
+  try {
+    let deleted = 0;
+
+    // Remove all run manifests
+    if (fs.existsSync(manifestsDir)) {
+      const files = fs
+        .readdirSync(manifestsDir)
+        .filter((f) => f.endsWith(".json"));
+      for (const f of files) {
+        fs.rmSync(path.resolve(manifestsDir, f), { force: true });
+        deleted++;
+      }
+    }
+
+    // Remove latest.json pointer
+    if (fs.existsSync(latestPath)) {
+      fs.rmSync(latestPath, { force: true });
+    }
+
+    console.log(`[dashboard] Clear-history: removed ${deleted} manifest(s)`);
+    res.json({ ok: true, deleted });
+  } catch (e) {
+    console.error("[dashboard] Clear-history error:", e);
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
 // Static UI (built)
 const distDir = path.resolve(__dirname, "dist");
 if (fs.existsSync(distDir)) {

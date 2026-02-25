@@ -66,6 +66,7 @@ from agent_coordination import AgentContext, SharedFinding
 from agents import QueryUnderstandingAgent, RootCauseAgent, LLMConfig, AgentResponse
 from agents.base import AgentType
 from agents.airflow_log_analyzer import AirflowLogAnalyzerAgent
+from agents.change_analyzer_agent import ChangeAnalyzerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -951,23 +952,61 @@ class ChangeAnalyzerOrchestrator:
     def __init__(
         self,
         git_log_path: str,
-        llm_config:   Optional[LLMConfig] = None,
+        llm_config: Optional[LLMConfig] = None,
     ) -> None:
         self.git_log_path = git_log_path
         self.llm_config   = llm_config or LLMConfig()
+        self._agent       = ChangeAnalyzerAgent(self.llm_config)
 
     async def solve_problem(self, user_query: str) -> AnalysisResult:
-        # TODO: implement git log parser + churn scorer + LLM summarizer
-        logger.info(f"[CHANGE_ORCH] Stub — git_log={self.git_log_path}")
-        return AnalysisResult(
-            problem_type      = ProblemType.GENERAL,
-            user_query        = user_query,
-            executive_summary = "Change Analyzer: analysis pending implementation.",
-            detailed_analysis = "",
-            health_score      = 100.0,
-            confidence        = 0.50,
-        )
+        # TODO: replace this with real git log parsing
+        # For now, assume git_log_path is a JSON file with the fingerprint_data shape.
+        import json
+        with open(self.git_log_path, "r", encoding="utf-8") as f:
+            fingerprint_data = json.load(f)
 
+        resp = self._agent.analyze(fingerprint_data=fingerprint_data)
+
+        # Derive problem_type from findings text
+        text = (resp.summary + " " + " ".join(resp.key_findings)).lower()
+        if "churn spike" in text:
+            problem_type = ProblemType.CHURN_SPIKE
+        elif "contributor silo" in text:
+            problem_type = ProblemType.CONTRIBUTOR_SILO
+        elif "risk" in text:
+            problem_type = ProblemType.REGRESSION_RISK
+        else:
+            problem_type = ProblemType.GENERAL
+
+        findings: List[AgentFinding] = []
+        for f_txt in resp.key_findings:
+            sev = Severity.HIGH if "spike" in f_txt.lower() or "silo" in f_txt.lower() else Severity.MEDIUM
+            findings.append(AgentFinding(
+                agent_type   = "change_analyzer",
+                finding_type = "analysis",
+                severity     = sev,
+                title        = f_txt[:80],
+                description  = f_txt,
+                recommendation = None,
+                evidence       = [],
+            ))
+
+        health_score = 100.0 if problem_type == ProblemType.GENERAL else 70.0
+
+        return AnalysisResult(
+            problem_type      = problem_type,
+            user_query        = user_query,
+            executive_summary = resp.summary,
+            detailed_analysis = resp.explanation,
+            findings          = findings,
+            recommendations   = [],
+            health_score      = health_score,
+            confidence        = resp.confidence,
+            agents_used       = ["change_analyzer"],
+            agent_sequence    = ["change_analyzer"],
+            total_processing_time_ms = 0,
+            raw_agent_responses      = {"change_analyzer": resp.model_dump()},
+        )
 
 # ============================================================================
 # TRIANGULATION AGENT
@@ -1049,7 +1088,31 @@ class TriangulationAgent:
                     affected_artifacts = [],
                 ))
 
-        # ── Aggregate health & dominant problem ───────────────────────────
+        # ── Pattern 3: Performance/health issues + data quality problems ──
+        if log_result and data_result:
+            log_has_issue = log_result.problem_type in (
+                ProblemType.PERFORMANCE, ProblemType.DATA_SKEW, ProblemType.EXECUTION_FAILURE
+            )
+            data_has_quality = data_result.problem_type in (
+                ProblemType.NULL_SPIKE, ProblemType.SCHEMA_DRIFT
+            )
+            if log_has_issue and data_has_quality:
+                correlations.append(CrossAgentCorrelation(
+                    correlation_id      = str(uuid.uuid4())[:8],
+                    contributing_agents = ["log_analyzer", "data_profiler"],
+                    pattern             = (
+                        "Data quality problems (null spikes or schema drift) may be contributing "
+                        "to performance or health issues in execution. Investigate data pipeline "
+                        "for upstream data corruption or ingestion failures."
+                    ),
+                    severity           = Severity.HIGH,
+                    confidence         = 0.78,
+                    evidence           = {
+                        "log_problem":  log_result.problem_type.value,
+                        "data_problem": data_result.problem_type.value,
+                    },
+                    affected_artifacts = [],
+                ))
         scores = [r.health_score for r in active_results.values()]
         overall_health = sum(scores) / len(scores) if scores else 100.0
 
@@ -1319,12 +1382,12 @@ class KratosOrchestrator:
             analyzer_coros.append(orch.solve_problem(user_query))
             analyzer_keys.append("code_analyzer")
 
-        if routing.invoke_data_profiler and dataset_path:
+        if any(t.agent_type == "data_profiler" for t in routing.tasks) and dataset_path:
             orch = DataProfilerOrchestrator(dataset_path, self.llm_config)
             analyzer_coros.append(orch.solve_problem(user_query))
             analyzer_keys.append("data_profiler")
 
-        if routing.invoke_change_analyzer and git_log_path:
+        if any(t.agent_type == "change_analyzer" for t in routing.tasks) and git_log_path:
             orch = ChangeAnalyzerOrchestrator(git_log_path, self.llm_config)
             analyzer_coros.append(orch.solve_problem(user_query))
             analyzer_keys.append("change_analyzer")
