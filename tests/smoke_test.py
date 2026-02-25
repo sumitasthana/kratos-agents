@@ -1,6 +1,8 @@
 import asyncio
 from datetime import datetime, timezone
 
+import pytest
+
 from agents.base import LLMConfig
 from orchestrator import SparkOrchestrator
 from schemas import (
@@ -22,9 +24,8 @@ from schemas import (
 )
 
 
-async def main() -> None:
-    # ── 1. Build a tiny synthetic ExecutionFingerprint ──────────────────
-    fingerprint = ExecutionFingerprint(
+def build_fingerprint() -> ExecutionFingerprint:
+    return ExecutionFingerprint(
         metadata=FingerprintMetadata(
             fingerprint_schema_version="2.0.0",
             generated_at=datetime.now(timezone.utc),
@@ -50,7 +51,9 @@ async def main() -> None:
                         num_partitions=4,
                         is_shuffle_stage=True,
                         rdd_name=None,
-                        description="Join customers with orders and aggregate by region",
+                        description=(
+                            "Join customers with orders and aggregate by region"
+                        ),
                     ),
                 ],
                 edges=[
@@ -72,7 +75,9 @@ async def main() -> None:
                 is_sql=True,
             ),
             semantic_hash="dummy-semantic",
-            description="Join customers and orders then aggregate by region",
+            description=(
+                "Join customers and orders then aggregate by region"
+            ),
             evidence_sources=[],
         ),
         context=ContextFingerprint(
@@ -123,28 +128,76 @@ async def main() -> None:
             stage_metrics=[],
             task_distribution=TaskMetricsDistribution(
                 duration_ms=PercentileStats(
-                    min_val=10, p25=20, p50=30, p75=40, p99=80, max_val=100,
-                    mean=35, stddev=5, count=100, outlier_count=2,
+                    min_val=10,
+                    p25=20,
+                    p50=30,
+                    p75=40,
+                    p99=80,
+                    max_val=100,
+                    mean=35,
+                    stddev=5,
+                    count=100,
+                    outlier_count=2,
                 ),
                 input_bytes=PercentileStats(
-                    min_val=100, p25=200, p50=300, p75=400, p99=800, max_val=1000,
-                    mean=350, stddev=50, count=100, outlier_count=2,
+                    min_val=100,
+                    p25=200,
+                    p50=300,
+                    p75=400,
+                    p99=800,
+                    max_val=1000,
+                    mean=350,
+                    stddev=50,
+                    count=100,
+                    outlier_count=2,
                 ),
                 output_bytes=PercentileStats(
-                    min_val=50, p25=100, p50=150, p75=200, p99=400, max_val=500,
-                    mean=160, stddev=30, count=100, outlier_count=1,
+                    min_val=50,
+                    p25=100,
+                    p50=150,
+                    p75=200,
+                    p99=400,
+                    max_val=500,
+                    mean=160,
+                    stddev=30,
+                    count=100,
+                    outlier_count=1,
                 ),
                 shuffle_read_bytes=PercentileStats(
-                    min_val=0, p25=0, p50=0, p75=10, p99=100, max_val=200,
-                    mean=5, stddev=20, count=100, outlier_count=1,
+                    min_val=0,
+                    p25=0,
+                    p50=0,
+                    p75=10,
+                    p99=100,
+                    max_val=200,
+                    mean=5,
+                    stddev=20,
+                    count=100,
+                    outlier_count=1,
                 ),
                 shuffle_write_bytes=PercentileStats(
-                    min_val=0, p25=0, p50=0, p75=10, p99=100, max_val=200,
-                    mean=5, stddev=20, count=100, outlier_count=1,
+                    min_val=0,
+                    p25=0,
+                    p50=0,
+                    p75=10,
+                    p99=100,
+                    max_val=200,
+                    mean=5,
+                    stddev=20,
+                    count=100,
+                    outlier_count=1,
                 ),
                 spill_bytes=PercentileStats(
-                    min_val=0, p25=0, p50=0, p75=0, p99=0, max_val=0,
-                    mean=0, stddev=0, count=100, outlier_count=0,
+                    min_val=0,
+                    p25=0,
+                    p50=0,
+                    p75=0,
+                    p99=0,
+                    max_val=0,
+                    mean=0,
+                    stddev=0,
+                    count=100,
+                    outlier_count=0,
                 ),
             ),
             anomalies=[],
@@ -156,30 +209,29 @@ async def main() -> None:
         analysis_hints=[],
     )
 
-    # ── 2. Configure LLM ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_spark_smoke_happy_path() -> None:
+    fingerprint = build_fingerprint()
+
     llm_config = LLMConfig(
         model="gpt-4.1",
         temperature=0.2,
         max_tokens=1024,
     )
 
-    # ── 3. Run orchestrator ─────────────────────────────────────────────
     orchestrator = SparkOrchestrator(
         fingerprint=fingerprint,
         llm_config=llm_config,
     )
 
     result = await orchestrator.solve_problem(
-        user_query="What does this job do and why is it slow?"
+        user_query="What does this job do and analyze this?"
     )
 
-    # ── 4. Print results ────────────────────────────────────────────────
-    print("Problem type    :", result.problem_type)
-    print("Executive summary:\n", result.executive_summary)
-    print(f"\nFindings ({len(result.findings)} total) — first 3:")
-    for f in result.findings[:3]:
-        print(f"  [{f.severity.value.upper()}] {f.title} :: {f.description}")
-
-
+    # Basic sanity checks rather than just printing
+    assert result.problem_type is not None
+    assert result.executive_summary
+    assert len(result.findings) > 0
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(test_spark_smoke_happy_path())
