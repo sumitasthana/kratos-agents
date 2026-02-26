@@ -271,10 +271,10 @@ function relativeTime(isoString: string): string {
 
 function commandMeta(cmd: string): { color: string; bg: string; icon: string } {
   switch (cmd) {
-    case "orchestrate":     return { color: "#d46b08", bg: "#fff7e6", icon: "⚡" };
-    case "git-dataflow":    return { color: "#096dd9", bg: "#e6f7ff", icon: "🔀" };
-    case "lineage-extract": return { color: "#389e0d", bg: "#f6ffed", icon: "🔗" };
-    default:                return { color: "#595959", bg: "#f5f5f5", icon: "📄" };
+    case "orchestrate":     return { color: "#f59e0b", bg: "#1c1007", icon: "" };
+    case "git-dataflow":    return { color: "#3b82f6", bg: "#0c1a2e", icon: "" };
+    case "lineage-extract": return { color: "#22c55e", bg: "#071811", icon: "" };
+    default:                return { color: "#9ca3af", bg: "#161b25", icon: "" };
   }
 }
 
@@ -318,33 +318,35 @@ function RunCard({
       onClick={onClick}
       style={{
         textAlign: "left",
-        padding: "10px 12px",
-        border: `1px solid ${selected ? "#91d5ff" : "#e8e8e8"}`,
-        borderRadius: 8,
-        background: selected ? "#e6f7ff" : "#fff",
+        padding: "8px 12px",
+        border: "none",
+        borderLeft: `2px solid ${selected ? "#3b82f6" : "transparent"}`,
+        background: selected ? "#1a1f2e" : "transparent",
         cursor: "pointer",
-        transition: "background 0.15s, border-color 0.15s",
         width: "100%",
+        color: selected ? "#e5e7eb" : "#9ca3af",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
         <span style={{
-          padding: "2px 8px", borderRadius: 99,
-          fontSize: 10, fontWeight: 700,
+          padding: "1px 7px",
+          fontSize: 9, fontWeight: 600,
           background: meta.bg, color: meta.color,
-          textTransform: "uppercase", letterSpacing: 0.5,
+          textTransform: "uppercase", letterSpacing: "0.08em",
+          fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
         }}>
-          {meta.icon} {run.command}
+          {run.command}
         </span>
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#aaa" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#4b5563",
+          fontFamily: "'JetBrains Mono', 'Fira Mono', monospace" }}>
           {relativeTime(run.created_at)}
         </span>
       </div>
       <div style={{
-        fontSize: 11, color: selected ? "#096dd9" : "#888",
-        fontFamily: "monospace", letterSpacing: 0.2,
+        fontSize: 10, color: selected ? "#6b7280" : "#4b5563",
+        fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
       }}>
-        {run.run_id.slice(0, 12)}…
+        {run.run_id.slice(0, 14)}…
       </div>
     </button>
   );
@@ -438,47 +440,58 @@ export default function App() {
   const meta = commandMeta(selectedRun?.command ?? "");
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "Segoe UI, system-ui, Arial, sans-serif", background: "#f7f8fa" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "Inter, system-ui, sans-serif", background: "#111318" }}>
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
       <div style={{
-        width: 280,
-        borderRight: "1px solid #e5e5e5",
-        background: "#fff",
+        width: 220,
+        borderRight: "1px solid #1f2937",
+        background: "#0f1117",
+        color: "#9ca3af",
+        position: "fixed",
+        height: "100vh",
         display: "flex", flexDirection: "column",
         overflow: "hidden",
+        zIndex: 10,
       }}>
         {/* Logo / title */}
         <div style={{
           padding: "16px 14px 12px",
-          borderBottom: "1px solid #f0f0f0",
+          borderBottom: "1px solid #1f2937",
         }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 2 }}>
-            ⚙️ Kratos Dashboard
+          <div style={{
+            fontSize: 11, fontWeight: 500,
+            fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
+            color: "#9ca3af", letterSpacing: "0.15em",
+            textTransform: "uppercase", marginBottom: 4,
+          }}>
+            KRATOS RCA
           </div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>
-            Local viewer · <code style={{ fontSize: 10 }}>runs/</code>
+          <div style={{ fontSize: 10, color: "#4b5563" }}>v0.1 · FDIC-370</div>
+          <div style={{
+            fontSize: 10, color: "#4b5563", marginTop: 6,
+            fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
+          }}>
+            Local viewer · runs/
           </div>
         </div>
 
         {/* ── Demo RCA nav link ── */}
-        <div style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0f0" }}>
+        <div style={{ padding: "8px 0", borderBottom: "1px solid #1f2937" }}>
           <a
             href="#demo-rca"
             style={{
               display: "block",
-              padding: "9px 12px",
-              borderRadius: 8,
-              border: `1px solid ${isDemoRCA ? "#91d5ff" : "#e8e8e8"}`,
-              background: isDemoRCA ? "#e6f7ff" : "#fff",
-              color: isDemoRCA ? "#096dd9" : "#333",
-              fontWeight: isDemoRCA ? 700 : 500,
+              padding: "9px 14px",
+              borderLeft: isDemoRCA ? "2px solid #3b82f6" : "2px solid transparent",
+              background: isDemoRCA ? "#1a1f2e" : "transparent",
+              color: isDemoRCA ? "#e5e7eb" : "#9ca3af",
               fontSize: 13,
+              fontWeight: isDemoRCA ? 500 : 400,
               textDecoration: "none",
-              transition: "background 0.15s, border-color 0.15s",
             }}
           >
-            🔬 Demo RCA (Real Logs)
+            Demo RCA
           </a>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "10px 10px" }}>
@@ -490,8 +503,9 @@ export default function App() {
             marginBottom: 8,
           }}>
             <div style={{
-              fontSize: 11, fontWeight: 700, color: "#aaa",
-              textTransform: "uppercase", letterSpacing: 0.8,
+              fontSize: 9, fontWeight: 600, color: "#4b5563",
+              textTransform: "uppercase", letterSpacing: "0.1em",
+              fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
             }}>
               Runs {runs.length > 0 && `(${runs.length})`}
             </div>
@@ -503,44 +517,46 @@ export default function App() {
                 disabled={clearing}
                 title="Clear all run history"
                 style={{
-                  border: "1px solid #ffa39e",
-                  background: clearing ? "#fff1f0" : "#fff",
-                  color: clearing ? "#aaa" : "#ff4d4f",
-                  borderRadius: 6,
+                  border: "1px solid #374151",
+                  background: "transparent",
+                  color: clearing ? "#4b5563" : "#ef4444",
+                  borderRadius: 2,
                   padding: "2px 8px",
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: 600,
                   cursor: clearing ? "not-allowed" : "pointer",
-                  transition: "background 0.15s",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
+                  fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
                 }}
               >
-                {clearing ? "Clearing…" : "🗑 Clear"}
+                {clearing ? "Clearing" : "Clear"}
               </button>
             )}
           </div>
 
           {error && (
             <div style={{
-              color: "#ff4d4f", fontSize: 12, marginBottom: 8,
-              padding: "8px 10px", background: "#fff0f0", borderRadius: 6,
+              color: "#ef4444", fontSize: 11, marginBottom: 8,
+              padding: "8px 10px",
+              borderLeft: "2px solid #ef4444",
+              background: "rgba(239,68,68,0.07)",
+              fontFamily: "'JetBrains Mono', 'Fira Mono', monospace",
             }}>
-              ⚠️ {error}
+              ERROR: {error}
             </div>
           )}
 
           {loadingRuns
-            ? <div style={{ fontSize: 12, color: "#aaa", padding: "8px 4px" }}>Loading runs…</div>
+            ? <div style={{ fontSize: 11, color: "#4b5563", padding: "8px 4px" }}>Loading runs…</div>
             : runs.length === 0
               ? (
                 <div style={{
-                  fontSize: 12, color: "#aaa", padding: "24px 4px",
+                  fontSize: 11, color: "#4b5563", padding: "24px 4px",
                   textAlign: "center", lineHeight: 1.8,
                 }}>
                   No runs found.<br />
-                  <span style={{ fontSize: 10 }}>Run a command to get started.</span>
+                  <span style={{ fontSize: 11 }}>Run a command to get started.</span>
                 </div>
               )
               : (
@@ -560,7 +576,7 @@ export default function App() {
       </div>
 
       {/* ══ MAIN PANEL ═══════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, marginLeft: 220, display: "flex", flexDirection: "column", overflow: "hidden", background: "#111318" }}>
         {isDemoRCA ? (
           <DemoRCA />
         ) : selectedRun ? (

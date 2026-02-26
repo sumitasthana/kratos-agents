@@ -1,0 +1,130 @@
+/* ============================================================
+   index.css — Kratos RCA  enterprise dark theme
+   Bloomberg / Datadog / PagerDuty reference style
+   ============================================================ */
+
+/* --- Google Fonts pre-connect (fonts loaded in index.html) --- */
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --bg-base:        #0f1117;
+  --bg-surface:     #111318;
+  --bg-card:        #161b25;
+  --border:         #1f2937;
+  --text-primary:   #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted:     #4b5563;
+  --text-mono:      'JetBrains Mono', 'Fira Mono', monospace;
+  --status-green:   #22c55e;
+  --status-amber:   #f59e0b;
+  --status-red:     #ef4444;
+  --status-blue:    #3b82f6;
+  --status-grey:    #374151;
+}
+
+/* ── Reset + base ──────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography helpers ────────────────────────────────────── */
+.mono {
+  font-family: var(--text-mono);
+}
+
+.label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--text-mono);
+}
+
+/* ── Divider ───────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* ── Status color utilities ────────────────────────────────── */
+.status-healthy  { color: var(--status-green); }
+.status-warning  { color: var(--status-amber); }
+.status-critical { color: var(--status-red);   }
+.status-skipped  { color: var(--status-grey);  }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── Selection ─────────────────────────────────────────────── */
+::selection {
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--text-primary);
+}
+
+/* ── Code/pre ──────────────────────────────────────────────── */
+code, pre {
+  font-family: var(--text-mono);
+  font-size: 11px;
+}
+
+/* ── Input / select resets ─────────────────────────────────── */
+input, select, button, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+input:focus {
+  outline: 1px solid var(--status-blue);
+  outline-offset: 0;
+}
+
+/* ── Table ─────────────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+th {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--text-mono);
+  background: var(--bg-base);
+}

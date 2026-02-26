@@ -1489,6 +1489,33 @@ class RecommendationAgent:
 # KRATOS ORCHESTRATOR  (top-level coordinator)
 # ============================================================================ 
 
+# ── Agent-chain metadata helpers ─────────────────────────────────────────────
+# Maps routing task types → canonical chain key used in IssueProfile dicts.
+_RT2CK: Dict[str, str] = {
+    "spark_log_analyzer":   "log_analyzer",
+    "airflow_log_analyzer": "log_analyzer",
+    "code_analyzer":        "code_analyzer",
+    "data_profiler":        "data_profiler",
+    "change_analyzer":      "change_analyzer",
+    "infra_analyzer":       "infra_analyzer",
+}
+
+# Human-readable labels for each chain key.
+_CK_LABEL: Dict[str, str] = {
+    "log_analyzer":    "Spark / Log Analyzer",
+    "code_analyzer":   "Code Analyzer",
+    "data_profiler":   "Data Profiler",
+    "change_analyzer": "Change Analyzer",
+    "infra_analyzer":  "Infra Analyzer",
+}
+
+
+async def _timed_coro(coro: Any) -> tuple:
+    """Wrap *coro* and return ``(result, elapsed_ms)`` on success or re-raise."""
+    t = time.time()
+    result = await coro
+    return result, int((time.time() - t) * 1000)
+
 class KratosOrchestrator:
     """
     Top-level Kratos coordinator — matches the full RCA Workflow Architecture.
@@ -1552,6 +1579,7 @@ class KratosOrchestrator:
         logger.info(f"[KRATOS] ═══ Job {job_id} | trigger={trigger} ═══")
 
         # ── Step 1: Route ─────────────────────────────────────────────────
+        t_route = time.time()
         routing = self.routing_agent.route(
             job_id               = job_id,
             trigger              = trigger,
@@ -1564,59 +1592,78 @@ class KratosOrchestrator:
             airflow_fingerprint   = airflow_fingerprint,
             infra_fingerprint     = infra_fingerprint,
         )
+        route_ms = int((time.time() - t_route) * 1000)
         logger.info(f"[KRATOS] Routing: {routing.routing_rationale}")
 
         # ── Step 2: Run analyzers in parallel ─────────────────────────────
         analyzer_coros: List[Any] = []
         analyzer_keys:  List[str] = []
 
+        # Collect ordered unique chain keys for every task the router scheduled.
+        # These become the "considered" set; ones we don't launch → "skipped".
+        _seen_ck: set = set()
+        _ordered_scheduled: List[str] = []
+        for _task in routing.tasks:
+            _ck = _RT2CK.get(_task.agent_type)
+            if _ck and _ck not in _seen_ck:
+                _seen_ck.add(_ck)
+                _ordered_scheduled.append(_ck)
+
         # Spark log analyzer
         if execution_fingerprint and any(t.agent_type == "spark_log_analyzer" for t in routing.tasks):
             orch = SparkOrchestrator(execution_fingerprint, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("log_analyzer")
 
         # Airflow log analyzer
         if airflow_fingerprint and any(t.agent_type == "airflow_log_analyzer" for t in routing.tasks):
             orch = AirflowLogAnalyzerOrchestrator(airflow_fingerprint, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("log_analyzer")
 
         if routing.invoke_code_analyzer and repo_path:
             orch = CodeAnalyzerOrchestrator(repo_path, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("code_analyzer")
 
         if any(t.agent_type == "data_profiler" for t in routing.tasks) and dataset_path:
             orch = DataProfilerOrchestrator(dataset_path, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("data_profiler")
 
         if any(t.agent_type == "change_analyzer" for t in routing.tasks) and git_log_path:
             orch = ChangeAnalyzerOrchestrator(git_log_path, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("change_analyzer")
 
         if any(t.agent_type == "infra_analyzer" for t in routing.tasks) and infra_fingerprint:
             orch = InfraAnalyzerOrchestrator(infra_fingerprint, self.llm_config)
-            analyzer_coros.append(orch.solve_problem(user_query))
+            analyzer_coros.append(_timed_coro(orch.solve_problem(user_query)))
             analyzer_keys.append("infra_analyzer")
 
-        results_list = await asyncio.gather(*analyzer_coros, return_exceptions=True)
+        raw_results = await asyncio.gather(*analyzer_coros, return_exceptions=True)
 
-        analyzer_results: Dict[str, Optional[AnalysisResult]] = {}
-        for key, result in zip(analyzer_keys, results_list):
-            if isinstance(result, Exception):
-                logger.error(f"[KRATOS] {key} failed: {result}")
-                analyzer_results[key] = None
+        analyzer_results:   Dict[str, Optional[AnalysisResult]] = {}
+        analyzer_durations: Dict[str, int]                      = {}
+        analyzer_errors:    Dict[str, Exception]                = {}
+
+        for key, raw in zip(analyzer_keys, raw_results):
+            if isinstance(raw, Exception):
+                logger.error(f"[KRATOS] {key} failed: {raw}")
+                analyzer_results[key]   = None
+                analyzer_durations[key] = 0
+                analyzer_errors[key]    = raw
             else:
-                analyzer_results[key] = result
+                result, dur_ms = raw
+                analyzer_results[key]   = result
+                analyzer_durations[key] = dur_ms
                 logger.info(
                     f"[KRATOS] {key}: health={result.health_score:.0f} "
                     f"findings={len(result.findings)}"
                 )
 
         # ── Step 3: Triangulate ───────────────────────────────────────────
+        t_tri = time.time()
         issue_profile = self.triangulation_agent.triangulate(
             job_id        = job_id,
             log_result    = analyzer_results.get("log_analyzer"),
@@ -1625,9 +1672,131 @@ class KratosOrchestrator:
             change_result = analyzer_results.get("change_analyzer"),
             infra_result  = analyzer_results.get("infra_analyzer"),
         )
+        tri_ms = int((time.time() - t_tri) * 1000)
 
         # ── Step 4: Recommend ─────────────────────────────────────────────
+        t_rec = time.time()
         report = self.recommendation_agent.recommend(issue_profile)
+        rec_ms = int((time.time() - t_rec) * 1000)
+
+        # ── Build agent_chain for visualiser ─────────────────────────────
+        agent_chain: List[Dict[str, Any]] = []
+        step_nr = 1
+
+        # Step 1: Routing Agent
+        invoked_labels = ", ".join(
+            _CK_LABEL.get(k, k) for k in _ordered_scheduled
+        ) or "none"
+        agent_chain.append({
+            "step":           step_nr,
+            "agent_id":       "routing_agent",
+            "agent_label":    "Routing Agent",
+            "agent_type":     "router",
+            "status":         "completed",
+            "decision":       routing.routing_rationale or f"Routed to: {invoked_labels}",
+            "duration_ms":    route_ms,
+            "output_summary": f"{len(_ordered_scheduled)} analyzer(s) selected based on fingerprint signals",
+        })
+        step_nr += 1
+
+        # Steps 2+: Analyzers (in the order they were scheduled by routing)
+        for ck in _ordered_scheduled:
+            result  = analyzer_results.get(ck)
+            dur_ms  = analyzer_durations.get(ck, 0)
+            exc     = analyzer_errors.get(ck)
+
+            if ck not in analyzer_keys:
+                # Was scheduled but not dispatched (missing fingerprint/path)
+                status   = "skipped"
+                decision = "Skipped — required data not provided for this run"
+                health   = 100.0
+                conf     = 0.0
+                n_find   = 0
+                n_crit   = 0
+                summary  = "No data source available for this analyzer."
+            elif exc is not None or result is None:
+                status   = "failed"
+                decision = f"Agent raised an exception: {str(exc)[:80]}" if exc else "Agent returned None"
+                health   = 0.0
+                conf     = 0.0
+                n_find   = 0
+                n_crit   = 0
+                summary  = str(exc)[:120] if exc else "Unknown failure"
+            else:
+                status  = "completed"
+                pt_name = (result.problem_type.value if result.problem_type else "general").upper()
+                decision = f"{pt_name.replace('_', ' ').title()} detected"
+                health  = result.health_score
+                conf    = result.confidence
+                n_find  = len(result.findings)
+                n_crit  = sum(
+                    1 for f in result.findings
+                    if getattr(f.severity, "value", str(f.severity)) == "critical"
+                )
+                summary = (result.executive_summary or "")[:160]
+
+            agent_chain.append({
+                "step":             step_nr,
+                "agent_id":         ck,
+                "agent_label":      _CK_LABEL.get(ck, ck),
+                "agent_type":       "analyzer",
+                "status":           status,
+                "decision":         decision,
+                "health_score":     health,
+                "confidence":       conf,
+                "findings_count":   n_find,
+                "critical_findings": n_crit,
+                "duration_ms":      dur_ms,
+                "output_summary":   summary,
+            })
+            step_nr += 1
+
+        # Triangulation step
+        corr_labels = [
+            f"{' + '.join(c.contributing_agents)}: {c.pattern[:60]}"
+            for c in issue_profile.correlations
+        ]
+        agent_chain.append({
+            "step":                 step_nr,
+            "agent_id":             "triangulation_agent",
+            "agent_label":          "Triangulation Agent",
+            "agent_type":           "triangulator",
+            "status":               "completed",
+            "decision":             (
+                f"{len(issue_profile.correlations)} cross-agent correlation(s) found"
+                if issue_profile.correlations else "No cross-agent correlations"
+            ),
+            "correlations":         corr_labels,
+            "dominant_problem_type": issue_profile.dominant_problem_type.value,
+            "overall_health_score":  issue_profile.overall_health_score,
+            "duration_ms":          tri_ms,
+            "output_summary": (
+                f"IssueProfile generated — {report.feedback_loop_signal} signal. "
+                f"Health: {issue_profile.overall_health_score:.0f}/100. "
+                f"Dominant: {issue_profile.dominant_problem_type.value}"
+            ),
+        })
+        step_nr += 1
+
+        # Recommendation step
+        agent_chain.append({
+            "step":            step_nr,
+            "agent_id":        "recommendation_agent",
+            "agent_label":     "Recommendation Agent",
+            "agent_type":      "recommender",
+            "status":          "completed",
+            "decision":        f"{len(report.prioritized_fixes)} fix(es) generated",
+            "fixes_count":     len(report.prioritized_fixes),
+            "feedback_signal": report.feedback_loop_signal,
+            "duration_ms":     rec_ms,
+            "output_summary": (
+                f"Prioritized fixes for: "
+                f"{', '.join(issue_profile.agents_invoked[:3])}. "
+                f"Signal: {report.feedback_loop_signal}."
+            ),
+        })
+
+        report.agent_chain = agent_chain
 
         elapsed = int((time.time() - start) * 1000)
         logger.info(

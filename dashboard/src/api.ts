@@ -1,3 +1,28 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// AgentChainStep — mirrors backend AgentChainStep dict shape and the interface
+// exported from AgentChainMap.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AgentChainStep {
+  step:                    number;
+  agent_id:                string;
+  agent_label?:            string;
+  agent_type:              "router" | "analyzer" | "triangulator" | "recommender";
+  status:                  "completed" | "skipped" | "failed";
+  decision:                string;
+  health_score?:           number;
+  confidence?:             number;
+  findings_count?:         number;
+  critical_findings?:      number;
+  duration_ms:             number;
+  output_summary:          string;
+  correlations?:           string[];
+  dominant_problem_type?:  string;
+  overall_health_score?:   number;
+  fixes_count?:            number;
+  feedback_signal?:        string;
+}
+
 export type RunManifest = {
   run_id: string;
   created_at: string;

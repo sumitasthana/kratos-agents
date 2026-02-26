@@ -631,6 +631,16 @@ class RecommendationReport(BaseModel):
     feedback_loop_signal: str           = Field(..., description="RE_RUN | ESCALATE | RESOLVED | MONITOR")
     reviewer_notes:       Optional[str] = Field(None, description="Free-text notes for KratosReviewer")
 
+    # Agentic chain metadata — ordered list of every pipeline step for the
+    # chain visualiser.  Default=[] so existing callers and tests are unaffected.
+    agent_chain: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Ordered execution steps: routing → analyzers → triangulation → recommender. "
+            "Each dict matches the AgentChainStep TypeScript interface."
+        ),
+    )
+
 
 # ============================================================================
 # COMPARISON / REGRESSION DETECTION

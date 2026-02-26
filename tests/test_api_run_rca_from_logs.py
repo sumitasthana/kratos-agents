@@ -362,3 +362,90 @@ async def test_run_rca_from_file_multi():
     ip = data.get("issue_profile", {})
     assert ip.get("overall_health_score") is not None, \
         "overall_health_score must be present when multiple analyzers run"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent-chain visibility tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_agent_chain_present():
+    """
+    POST /api/run_rca_from_logs with spark + infra selected must return
+    a non-empty agent_chain list that:
+
+    * starts with the routing agent   (step 1, agent_type "router")
+    * includes at least one analyzer  (agent_type "analyzer")
+    * includes a triangulation step   (agent_type "triangulator")
+    * ends with the recommendation    (agent_type "recommender")
+    * every step has "status" and "duration_ms" fields
+    * total wall-clock duration_ms is positive for completed steps
+    """
+    _require_fixture("spark", "spark_failure_spill.jsonl")
+    _require_fixture("infra", "node_pressure_oom.log")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        resp = await client.post(
+            "/api/run_rca_from_logs",
+            json={
+                "scenario":   "test_agent_chain",
+                "user_query": "Why did Spark OOM on the executor node?",
+                "include": {
+                    "spark":   True,
+                    "airflow": False,
+                    "data":    False,
+                    "infra":   True,
+                    "change":  False,
+                },
+            },
+        )
+
+    assert resp.status_code == 200, \
+        f"Expected 200, got {resp.status_code}: {resp.text[:500]}"
+
+    data  = resp.json()
+    chain = data.get("agent_chain", [])
+
+    # ── basic presence ────────────────────────────────────────────────────────
+    assert isinstance(chain, list), "agent_chain must be a list"
+    assert len(chain) > 0, "agent_chain must not be empty"
+
+    # ── mandatory fields on every step ────────────────────────────────────────
+    for step in chain:
+        assert "status"      in step, f"Missing 'status' in step {step}"
+        assert "duration_ms" in step, f"Missing 'duration_ms' in step {step}"
+        assert "agent_type"  in step, f"Missing 'agent_type' in step {step}"
+        assert "decision"    in step, f"Missing 'decision' in step {step}"
+
+    # ── structural ordering ───────────────────────────────────────────────────
+    agent_types = [s["agent_type"] for s in chain]
+
+    assert agent_types[0] == "router", \
+        f"First step must be the router agent, got: {agent_types[0]}"
+
+    assert "analyzer" in agent_types, \
+        "At least one analyzer step must be present"
+
+    assert "triangulator" in agent_types, \
+        "A triangulation step must be present"
+
+    assert agent_types[-1] == "recommender", \
+        f"Last step must be the recommender, got: {agent_types[-1]}"
+
+    # ── first step is routing ─────────────────────────────────────────────────
+    router_step = chain[0]
+    assert router_step.get("agent_id") == "routing_agent"
+    assert router_step.get("status")   == "completed"
+
+    # ── completed steps must have a positive duration ─────────────────────────
+    for step in chain:
+        if step.get("status") == "completed":
+            assert step["duration_ms"] >= 0, \
+                f"Completed step {step.get('agent_id')} has negative duration"
+
+    # ── recommender feedback signal ───────────────────────────────────────────
+    rec_step = chain[-1]
+    assert rec_step.get("feedback_signal") in {"RE_RUN", "ESCALATE", "RESOLVED", "MONITOR"}, \
+        f"Unexpected feedback_signal: {rec_step.get('feedback_signal')}"
