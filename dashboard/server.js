@@ -1,5 +1,6 @@
 import express from "express";
 import fs from "fs";
+import http from "http";
 import path from "path";
 import url from "url";
 
@@ -7,6 +8,11 @@ const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 4173;
+// FastAPI RCA backend (POST /api/run_rca and /api/run_rca_from_logs).
+// Use 127.0.0.1 explicitly — "localhost" can resolve to ::1 (IPv6) on
+// Windows, causing ECONNREFUSED when uvicorn listens on 127.0.0.1 only.
+const FASTAPI_HOST = "127.0.0.1";
+const FASTAPI_PORT = 8000;
 
 const repoRoot = path.resolve(__dirname, "..");
 const runsRoot = path.resolve(repoRoot, "runs");
@@ -114,6 +120,44 @@ app.delete("/api/clear-history", (req, res) => {
     res.status(500).json({ error: String(e?.message || e) });
   }
 });
+
+// ── Proxy /api/run_rca* → FastAPI on port 8000 ───────────────────────────────
+// Used when the dashboard Express server is the public entry point (production
+// mode or `npm run server`).  In `npm run dev` mode Vite's proxy handles this.
+function proxyToFastAPI(req, res) {
+  const body = [];
+  req.on("data", (chunk) => body.push(chunk));
+  req.on("end", () => {
+    const data = Buffer.concat(body);
+    const options = {
+      hostname: FASTAPI_HOST,
+      port:     FASTAPI_PORT,
+      path:     req.url,
+      method:   req.method,
+      headers:  {
+        ...req.headers,
+        host:             `${FASTAPI_HOST}:${FASTAPI_PORT}`,
+        "content-length": data.length,
+      },
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+    proxyReq.on("error", (err) => {
+      console.error("[dashboard] FastAPI proxy error:", err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ error: `FastAPI proxy error: ${err.message}` });
+      }
+    });
+    proxyReq.end(data);
+  });
+}
+
+app.post("/api/run_rca", proxyToFastAPI);
+app.post("/api/run_rca_from_logs", proxyToFastAPI);
+app.post("/api/run_rca_from_file", proxyToFastAPI);
+app.get("/api/logs/browse", proxyToFastAPI);
 
 // Static UI (built)
 const distDir = path.resolve(__dirname, "dist");

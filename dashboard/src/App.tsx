@@ -237,6 +237,18 @@ import { fetchLatest, fetchRun, fetchRuns, RunManifest } from "./api";
 import LineageGraph from "./LineageGraph";
 import GitDataflowGraph from "./GitDataflowGraph";
 import RCAFindings from "./RCAFindings";
+import DemoRCA from "./DemoRCA";
+
+// ── Simple hash-based page router ─────────────────────────────────────
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash || "#runs");
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash || "#runs");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash;
+}
 
 type TabType = "overview" | "rca" | "git" | "lineage";
 
@@ -341,6 +353,9 @@ function RunCard({
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const hash = useHash();
+  const isDemoRCA = hash === "#demo-rca";
+
   const [runs,          setRuns         ] = useState<RunManifest[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun,   setSelectedRun  ] = useState<RunManifest | null>(null);
@@ -446,7 +461,26 @@ export default function App() {
           </div>
         </div>
 
-        {/* Run list */}
+        {/* ── Demo RCA nav link ── */}
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0f0" }}>
+          <a
+            href="#demo-rca"
+            style={{
+              display: "block",
+              padding: "9px 12px",
+              borderRadius: 8,
+              border: `1px solid ${isDemoRCA ? "#91d5ff" : "#e8e8e8"}`,
+              background: isDemoRCA ? "#e6f7ff" : "#fff",
+              color: isDemoRCA ? "#096dd9" : "#333",
+              fontWeight: isDemoRCA ? 700 : 500,
+              fontSize: 13,
+              textDecoration: "none",
+              transition: "background 0.15s, border-color 0.15s",
+            }}
+          >
+            🔬 Demo RCA (Real Logs)
+          </a>
+        </div>
         <div style={{ flex: 1, overflow: "auto", padding: "10px 10px" }}>
 
           {/* ── Section header + Clear button ── */}
@@ -527,7 +561,9 @@ export default function App() {
 
       {/* ══ MAIN PANEL ═══════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {selectedRun ? (
+        {isDemoRCA ? (
+          <DemoRCA />
+        ) : selectedRun ? (
           <>
             {/* ── Header ── */}
             <div style={{

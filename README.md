@@ -1,30 +1,34 @@
+Here’s a cleaned‑up, updated README you can drop in as `README.md` (replace the GitHub URL if needed).
+
+***
+
 # Kratos Agents
 
 ## Multi-Agent Root Cause Analysis for Modern Data Platforms
 
-> Intelligent, multi-agent RCA system for Spark, Airflow, code changes, data quality, and infrastructure — with a production-ready React dashboard.
+> Intelligent, multi‑agent RCA system for Spark, Airflow, data quality, code changes, and infrastructure — with a production‑ready React dashboard.
 
----
+***
 
 ## 🚀 Overview
 
-Kratos is a **multi-agent orchestration system** that performs automated root cause analysis (RCA) across distributed data platforms.
+Kratos is a **multi‑agent orchestration system** that performs automated root cause analysis (RCA) across distributed data platforms.
 
 It ingests:
 
-* Spark execution logs
-* Airflow task logs
-* Dataset snapshots
-* Git commit history
-* Infrastructure / observability metrics
+- Spark execution logs  
+- Airflow task logs  
+- Dataset snapshots / data quality fingerprints  
+- Git commit history  
+- Infrastructure / observability metrics  
 
 It then:
 
-1. Routes inputs to specialized analyzers
-2. Triangulates cross-domain signals
-3. Generates structured `IssueProfile` objects
-4. Produces prioritized `RecommendationReport` objects
-5. Renders results in a React dashboard
+1. Routes inputs to specialized analyzers.  
+2. Triangulates cross‑domain signals into a unified view.  
+3. Generates structured `IssueProfile` objects.  
+4. Produces prioritized `RecommendationReport` objects.  
+5. Renders results in a React dashboard for human review.
 
 This is not a single-agent LLM wrapper.
 It is a **deterministic orchestration layer coordinating multiple analyzers**.
@@ -125,23 +129,23 @@ python -m src.cli lineage-extract --folder ./path/to/etl/scripts
 
 Kratos ingests Spark execution logs, generates an **ExecutionFingerprint**, and routes it through a two-layer agent orchestration pipeline. The result is a structured RCA report surfaced in a React dashboard — with health scoring, severity-ranked findings, and green fix blocks attached directly to each issue.
 
----
+***
 
-# 🧠 What Kratos Analyzes
+## 🧠 What Kratos Analyzes
 
-| Domain | Input            | Agent                                    | Output                        |
-|--------|------------------|------------------------------------------|-------------------------------|
-| Spark  | Event logs       | RootCauseAgent + QueryUnderstandingAgent | ExecutionFingerprint + RCA    |
-| Airflow| Task logs        | AirflowLogAnalyzerAgent                  | Task health & workload summary|
-| Data   | Dataset snapshot | DataProfilerAgent                        | Null spikes, schema drift     |
-| Code   | Git history      | ChangeAnalyzerAgent                      | Churn risk, contributor silo  |
-| Infra  | Cluster metrics  | InfraAnalyzerAgent                       | Resource pressure patterns    |
+| Domain | Input               | Agent(s)                                   | Output                               |
+|--------|---------------------|--------------------------------------------|--------------------------------------|
+| Spark  | Event logs          | RootCauseAgent + QueryUnderstandingAgent  | `ExecutionFingerprint` + RCA         |
+| Airflow| Task logs           | AirflowLogAnalyzerAgent                    | Task health & workload summary       |
+| Data   | Dataset snapshot / DQ logs | DataProfilerAgent (stub today)      | Null spikes, schema drift (planned)  |
+| Code   | Git history         | ChangeAnalyzerAgent                        | Churn risk, contributor silo         |
+| Infra  | Cluster metrics     | InfraAnalyzerAgent                         | Resource pressure / memory pressure  |
 
-Each agent emits an `AgentResponse` which is transformed into an `AnalysisResult` for triangulation.
+Each agent emits an `AgentResponse`, which the orchestrators convert into an `AnalysisResult` for triangulation.
 
----
+***
 
-# 🏗 Architecture
+## 🏗 Architecture
 
 ```text
 KratosOrchestrator
@@ -166,119 +170,125 @@ RoutingAgent
     RecommendationReport
            │
            ▼
-    React Dashboard (RCAFindings)
+    React Dashboard (Demo RCA / RCA Findings)
 ```
 
 Each analyzer produces an `AnalysisResult`.
 
-The **TriangulationAgent** merges results into a unified `IssueProfile`:
+The **TriangulationAgent** merges results into a unified `IssueProfile` with:
 
-* `dominant_problem_type`
-* `overall_health_score`
-* `overall_confidence`
-* `log_analysis`, `code_analysis`, `data_analysis`, `change_analysis`, `infra_analysis`
-* `correlations` (cross-agent patterns)
+- `dominant_problem_type`  
+- `overall_health_score`  
+- `overall_confidence`  
+- Per‑domain analyses: `log_analysis`, `code_analysis`, `data_analysis`, `change_analysis`, `infra_analysis`  
+- `correlations` (cross‑agent patterns)  
+- `agents_invoked`, `total_findings_count`, `critical_findings_count`
 
-The **RecommendationAgent** turns the `IssueProfile` into a `RecommendationReport`
-with:
+The **RecommendationAgent** turns the `IssueProfile` into a `RecommendationReport` with:
 
-* `executive_summary`
-* `prioritized_fixes`
-* `ontology_update`
-* `feedback_loop_signal`
+- `executive_summary` (health, analyzers, fixes, signal)  
+- `prioritized_fixes` (Fix objects with effort/priority)  
+- `ontology_update` (learned patterns / control refs)  
+- `feedback_loop_signal` (`ESCALATE`, `RERUN`, `RESOLVED`, `MONITOR`)
 
----
+***
 
-# 📊 Dashboard
-
+## 📊 Dashboard
+![Demo RCA – Real Fixture Logs](screenshots/RCA_DEMO.png)
 The Vite + React dashboard provides:
 
-* Run history sidebar
-* Health score visualization
-* Analyzer status strip (Spark / Airflow / Code / Data / Change / Infra)
-* Expandable findings per analyzer
-* Cross-agent correlations
-* Executive summary
-* Prioritized fixes
+- **Demo RCA – Real Fixture Logs** page  
+  - Select Spark / Airflow / Data / Infra / Change signals.  
+  - Run RCA via `POST /api/run_rca_from_logs`.  
+  - Visualize overall health, per‑analyzer cards, and prioritized fixes.  
+- **Run viewer** (optional)  
+  - Historical runs sidebar (if wired to a runs backend).  
+- Visuals:
+  - Overall health score and dominant problem type.  
+  - Analyzer status strip (Spark / Airflow / Data / Infra / Change).  
+  - Expandable findings per analyzer.  
+  - Cross‑agent correlations.  
+  - Executive summary and confidence.  
+  - Prioritized fixes with effort/priority badges.
 
-The backend is UI-agnostic.
-All visual interpretation is handled by React.
+The backend is UI‑agnostic; the dashboard consumes pure JSON (`RecommendationReport`).
 
----
+***
 
-# 🏷 Problem Types
+## 🏷 Problem Types
 
-Kratos uses standardized classifications across agents:
+Kratos uses standardized problem types across agents:
 
-| Type               | Description                                |
-|--------------------|--------------------------------------------|
-| HEALTHY            | No anomalies detected                      |
-| EXECUTION_FAILURE  | Spark task failures dominate               |
-| MEMORY_PRESSURE    | Spill or OOM patterns                      |
-| SHUFFLE_OVERHEAD   | Excessive shuffle                          |
-| DATA_SKEW          | Skew penalties dominate                    |
-| NULL_SPIKE         | Data profiler detected null increase       |
-| SCHEMA_DRIFT       | Column or type drift                       |
-| CHURN_SPIKE        | Large change window in Git                 |
-| CONTRIBUTOR_SILO   | Single-author dominance                    |
-| REGRESSION_RISK    | Risky change before failure                |
-| CORRELATED_FAILURE | Multi-agent pattern detected               |
-| GENERAL            | No dominant issue                          |
+| Type               | Description                                      |
+|--------------------|--------------------------------------------------|
+| HEALTHY            | No anomalies detected                            |
+| EXECUTION_FAILURE  | Spark task failures dominate                     |
+| MEMORY_PRESSURE    | Spill / OOM / high memory usage                  |
+| SHUFFLE_OVERHEAD   | Excessive shuffle traffic                        |
+| DATA_SKEW          | Skew penalties dominate                          |
+| NULL_SPIKE         | Data profiler detects null ratio spike           |
+| SCHEMA_DRIFT       | Column or type drift                             |
+| CHURN_SPIKE        | Large change window in Git history               |
+| CONTRIBUTOR_SILO   | Single‑author dominance on critical paths        |
+| REGRESSION_RISK    | Risky change preceding failure                   |
+| CORRELATED_FAILURE | Multi‑agent pattern detected                     |
+| GENERAL            | No single dominant issue                         |
 
-Infra-specific labels (e.g. resource pressure) are expressed either as dedicated
-problem types or via the text in `infra_analysis.problem_type` and correlations.
+Infra‑specific conditions (e.g., resource pressure) are expressed via `infra_analysis.problem_type` plus correlations.
 
----
+***
 
-# 📐 Confidence Scoring (Spark Path)
+## 📐 Confidence Scoring (Spark Path)
 
-Confidence for Spark RCA is derived from:
+Confidence for Spark RCA is derived from four components:
 
-| Signal            | Max Points |
-|-------------------|-----------:|
-| Data completeness | 30         |
-| Signal dominance  | 30         |
-| Agent agreement   | 20         |
-| Cause clarity     | 20         |
+| Signal             | Max Points |
+|--------------------|-----------:|
+| Data completeness  | 30         |
+| Signal dominance   | 30         |
+| Agent agreement    | 20         |
+| Cause clarity      | 20         |
 
-Minimum floor: **0.40**
+- Confidence is normalized to \[0.0, 1.0\], with a floor at **0.40**.  
+- No hardcoded confidence constants; it is computed from the fingerprint and agent responses.
 
-No hardcoded confidence values.
+***
 
----
-
-# 🔗 Cross-Agent Correlation
+## 🔗 Cross‑Agent Correlation
 
 The triangulation layer detects patterns such as:
 
-* Churn spike + Spark failure
-* Compliance gap + null spike
-* Infra resource saturation + execution failure / memory pressure
-* Schema drift + ETL regression
+- Churn spike + Spark execution failure.  
+- Compliance gap + null spike in the same dataset.  
+- Infra memory pressure + Spark execution failure / memory pressure.  
+- Schema drift + downstream ETL regression.
 
-These are rendered as `CrossAgentCorrelation` objects in the dashboard, with:
+These become `CrossAgentCorrelation` objects with:
 
-* Pattern description
-* Severity
-* Contributing agents
-* Confidence
+- Pattern description.  
+- Severity.  
+- Contributing agents.  
+- Confidence.  
+- Optional affected artifacts.
 
----
+These correlations also feed into the recommendation layer to create cross‑domain fixes.
 
-# 📂 Project Structure
+***
+
+## 📂 Project Structure
 
 ```text
 kratos-agents/
 ├── src/
-│   ├── orchestrator.py          # KratosOrchestrator, SparkOrchestrator, routing
-│   ├── schemas.py               # Pydantic models (fingerprints, IssueProfile…)
+│   ├── orchestrator.py          # KratosOrchestrator, SparkOrchestrator, routing, triangulation, recommendation
+│   ├── schemas.py               # Pydantic models (fingerprints, IssueProfile, RecommendationReport…)
 │   ├── agent_coordination.py    # AgentContext, SharedFinding
 │   ├── agents/
 │   │   ├── base.py              # BaseAgent, AgentType
 │   │   ├── root_cause.py        # Spark RCA
 │   │   ├── query_understanding.py
 │   │   ├── airflow_log_analyzer.py
-│   │   ├── data_profiler_agent.py
+│   │   ├── data_profiler_agent.py   # Stub for now
 │   │   ├── change_analyzer_agent.py
 │   │   └── infra_analyzer_agent.py
 │   ├── cli.py                   # CLI entry points
@@ -287,25 +297,25 @@ kratos-agents/
 │
 ├── dashboard/
 │   ├── src/
-│   │   ├── App.tsx              # App shell, runs sidebar
-│   │   └── RCAFindings.tsx      # RCA findings view (analyzers, correlations)
-│   ├── server.js                # Static server + runs API
+│   │   ├── App.tsx              # App shell / routing
+│   │   ├── RCAFindings.tsx      # Main RCA findings view
+│   │   └── DemoRCA.tsx          # Demo RCA – Real Fixture Logs
+│   ├── server.js                # Static server + local proxy
+│   ├── vite.config.ts           # Dev proxy to FastAPI
 │   └── package.json
 │
-├── scripts/
-│   └── multi/                   # Log generation / collection utilities
-│
 ├── logs/                        # Raw + processed logs (gitignored)
+├── tests/                       # Smoke + API tests
 ├── screenshots/                 # Dashboard screenshots
 ├── requirements.txt
 └── README.md
 ```
 
----
+***
 
-# ⚙ Setup
+## ⚙ Setup
 
-## Backend
+### Backend
 
 ```bash
 git clone https://github.com/sumitasthana/kratos-agents.git
@@ -320,24 +330,30 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
+Start the RCA API (from the `src/` directory if that’s where `rca_api.py` lives):
 
-## Dashboard
+```bash
+cd src
+uvicorn rca_api:app --reload   # http://127.0.0.1:8000
+```
+
+### Dashboard
 
 ```bash
 cd dashboard
 npm install
 
-npm run dev    # http://localhost:5173
+npm run dev      # http://127.0.0.1:5173 (via Vite proxy to FastAPI)
+# or production build:
 npm run build
-npm start      # http://localhost:4173
+npm start        # e.g. http://localhost:4173
 ```
 
-The dashboard server reads run artifacts from `logs/` by default (see console output).
+The dashboard proxies `/api/*` requests to the FastAPI backend.
 
----
+***
 
-# ▶ Running Kratos
+## ▶ Running Kratos
 
 ## Spark
 ## Requirements
@@ -404,7 +420,7 @@ python -m src.cli orchestrate \
   --log-path logs/raw/spark_events/log.json
 ```
 
-## With Question
+With a natural‑language question:
 
 ```bash
 python -m src.cli orchestrate \
@@ -412,58 +428,71 @@ python -m src.cli orchestrate \
   --query "Why is my job slow?"
 ```
 
-## Airflow
+### Demo RCA – Real Fixture Logs (UI)
 
-```bash
-python -m src.smoke_test_airflow
+1. Start FastAPI (`uvicorn rca_api:app --reload`).  
+2. Start the dashboard (`npm run dev`).  
+3. Open the **Demo RCA – Real Fixture Logs** page.  
+4. Select which signals to include (Spark / Airflow / Data / Infra / Change).  
+5. Enter a question and click **Run RCA**.  
+6. Inspect:
+   - Overall health & dominant problem type.  
+   - Per‑analyzer cards.  
+   - Cross‑agent correlations.  
+   - Prioritized fixes from the RecommendationAgent.
+
+### Programmatic – Python
+
+```python
+from src.orchestrator import KratosOrchestrator
+
+kratos = KratosOrchestrator()
+report = await kratos.run(
+    user_query="Nightly OHLCV pipeline is failing and cluster looks hot.",
+    execution_fingerprint=spark_fp,
+    airflow_fingerprint=airflow_fp,
+    infra_fingerprint=infra_fp,
+    dataset_path="path/to/dq_fingerprint.json",
+    git_log_path="path/to/git_log.json",
+)
+
+print(report.executive_summary)
+for fix in report.prioritized_fixes:
+    print(f"- [{fix.priority}] {fix.title}: {fix.description}")
 ```
 
-## With Data + Git
+***
 
-```bash
-python -m src.smoke_test \
-  --dataset-path dataset.parquet \
-  --git-log-path change_fingerprint.json
-```
+## 🧩 Design Principles
 
-## (Example) With Infra Metrics
+- Deterministic orchestration over opaque single‑LLM reasoning.  
+- Clear separation of **analysis** (Python agents) and **presentation** (React).  
+- Negation‑aware severity and recommendation extraction.  
+- Two‑phase classification: routing decision vs. health‑derived override.  
+- Explicit contracts via Pydantic schemas.  
+- Pluggable multi‑agent architecture (Spark, Airflow, Data, Code, Infra).
 
-Once you have an `infra_fingerprint` JSON (cluster metrics snapshot), you can
-call `KratosOrchestrator.run(user_query, infra_fingerprint=...)` from Python,
-or add a dedicated smoke test to generate a run the dashboard can visualize.
+***
 
-After running any of these commands, open the dashboard and inspect analyzer
-cards and correlations.
-
----
-
-# 🧩 Design Principles
-
-* Deterministic orchestration over single-LLM reasoning
-* Separation of analysis and presentation
-* Negation-aware severity detection
-* Two-phase classification logic (routing vs. health-derived override)
-* Explicit schemas via Pydantic
-* Expandable multi-agent architecture (Spark, Airflow, Data, Code, Infra)
-
----
-
-# 🛠 Contributing
+## 🛠 Contributing
 
 ```bash
 git checkout -b arunesh/<feature-name>
 
-git commit -m "feat(orchestrator): add infra analyzer wiring
-
-- describe change
-- keep scope focused"
+# Make focused changes with good tests.
+git commit -m "feat(orchestrator): <short description>"
+git push origin arunesh/<feature-name>
 ```
 
-Open a pull request after pushing.
+Then open a pull request describing:
 
----
+- Motivation / context.  
+- Changes to orchestrator or agents.  
+- Any new tests or demo scenarios.
 
-# 👥 Authors
+***
 
-* **sumitasthana** — Project Lead
-* **AruneshDev** — Orchestration Engine, Multi-Agent RCA, Dashboard
+## 👥 Authors
+
+- **@sumitasthana** — Project lead, initial architecture.  
+- **@AruneshDev** — Orchestration engine, multi‑agent RCA, dashboard & demo flow.

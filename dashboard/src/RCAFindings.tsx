@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DEMO_SCENARIOS, FROM_LOGS_SCENARIOS, type ScenarioKey } from "./demoScenarios";
 
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -94,6 +95,32 @@ type IssueProfileT = {
   agents_invoked:          string[];
   total_findings_count:    number;
   critical_findings_count: number;
+};
+
+
+// ── RecommendationReport types (mirrors backend schemas.py Fix / RecommendationReport) ─
+
+type Fix = {
+  fix_id:            string;
+  title:             string;
+  description:       string;
+  applies_to_agents: string[];
+  priority:          number;
+  effort:            string;   // "low" | "medium" | "high"
+  code_snippet?:     string | null;
+  references:        string[];
+};
+
+type RecommendationReport = {
+  job_id:             string;
+  generated_at:       string;
+  issue_profile:      IssueProfileT;
+  prioritized_fixes:  Fix[];
+  executive_summary:  string;
+  detailed_narrative: string;
+  ontology_update?:   unknown;
+  feedback_loop_signal: string;
+  reviewer_notes?:    string | null;
 };
 
 
@@ -927,6 +954,123 @@ function AnalyzerStrip({ issueProfile }: { issueProfile: IssueProfileT }) {
 }
 
 
+// ── Prioritized fixes section ────────────────────────────────────────────────
+
+
+const EFFORT_COLOR: Record<string, string> = {
+  low:    "#16a34a",
+  medium: "#d97706",
+  high:   "#dc2626",
+};
+
+function PrioritizedFixesSection({ fixes }: { fixes: Fix[] }) {
+  const [open, setOpen] = useState(true);
+  if (!fixes || fixes.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionToggleHeader
+        title="Prioritized Fixes"
+        count={fixes.length}
+        open={open}
+        onToggle={() => setOpen(!open)}
+      />
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {fixes
+            .slice()
+            .sort((a, b) => a.priority - b.priority)
+            .map((fix, i) => {
+              const effortColor = EFFORT_COLOR[fix.effort?.toLowerCase()] ?? COLOR.textMuted;
+              return (
+                <Card
+                  key={fix.fix_id || i}
+                  style={{ overflow: "hidden", borderLeft: `3px solid ${COLOR.blue}` }}
+                >
+                  {/* Title row */}
+                  <div
+                    style={{
+                      display: "flex", justifyContent: "space-between",
+                      alignItems: "center", gap: 12,
+                      padding: "10px 14px",
+                      background: COLOR.blueBg,
+                      borderBottom: `1px solid ${COLOR.blueBorder}`,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        minWidth: 24, height: 24,
+                        background: COLOR.blue, color: "#fff",
+                        borderRadius: 6, fontWeight: 700, fontSize: 12,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                      }}>
+                        {fix.priority}
+                      </div>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: COLOR.textPrimary }}>
+                        {fix.title}
+                      </span>
+                    </div>
+                    <span style={{
+                      padding: "2px 9px", borderRadius: 5,
+                      fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                      background: "transparent",
+                      border: `1px solid ${effortColor}`,
+                      color: effortColor, letterSpacing: 0.5,
+                    }}>
+                      {fix.effort} effort
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <div style={{ padding: "10px 14px", fontSize: 13, color: "#374151", lineHeight: 1.65 }}>
+                    {renderMarkdown(fix.description)}
+                  </div>
+
+                  {/* Code snippet */}
+                  {fix.code_snippet && (
+                    <div style={{
+                      padding: "8px 14px",
+                      background: "#1e1e2e", color: "#cdd6f4",
+                      fontFamily: "monospace", fontSize: 11, lineHeight: 1.6,
+                      borderTop: `1px solid ${COLOR.borderMuted}`,
+                      whiteSpace: "pre-wrap", overflowX: "auto",
+                    }}>
+                      {fix.code_snippet}
+                    </div>
+                  )}
+
+                  {/* Applies-to agents */}
+                  {(fix.applies_to_agents ?? []).length > 0 && (
+                    <div style={{
+                      padding: "7px 14px",
+                      background: COLOR.surface,
+                      borderTop: `1px solid ${COLOR.borderMuted}`,
+                      display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                    }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: COLOR.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginRight: 4 }}>
+                        Resolves
+                      </span>
+                      {fix.applies_to_agents.map((a, ai) => (
+                        <span key={ai} style={{
+                          padding: "2px 9px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                          background: COLOR.blueBg, border: `1px solid ${COLOR.blueBorder}`, color: COLOR.blue,
+                        }}>
+                          {a.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ── Correlations section ──────────────────────────────────────────────────────
 
 
@@ -1000,73 +1144,160 @@ function CorrelationsSection({ correlations }: { correlations: CrossAgentCorrela
 }
 
 
+// ── Run RCA control panel ────────────────────────────────────────────────────
+// Renders the query input, scenario picker and submit button.
+// Kept as a pure presentational block so it can be read top-to-bottom.
+
+
+const SCENARIO_OPTIONS: { value: ScenarioKey; label: string }[] = [
+  { value: "spark_failure",   label: "Spark Failure"                },
+  { value: "airflow_failure", label: "Airflow Failure"              },
+  { value: "data_null_spike", label: "Data Null Spike"              },
+  { value: "infra_pressure",  label: "Infra Pressure"               },
+  { value: "demo_incident",   label: "Demo Incident (Real Logs) ✦" },
+];
+
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 
 export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
-  const [severityFilter,       setSeverityFilter]       = useState<SeverityFilter>("all");
-  const [showFindings,         setShowFindings]         = useState(true);
-  const [showRecommendations,  setShowRecommendations]  = useState(true);
+  // ── Filter / collapse state (unchanged) ────────────────────────────────────
+  const [severityFilter,      setSeverityFilter]      = useState<SeverityFilter>("all");
+  const [showFindings,        setShowFindings]        = useState(true);
+  const [showRecommendations, setShowRecommendations] = useState(true);
 
-  if (!orchestratorData) {
-    return (
-      <div style={{ padding: 60, textAlign: "center", color: COLOR.textMuted, fontSize: 13, fontFamily: "Segoe UI, system-ui, Arial, sans-serif" }}>
-        No RCA data available.
-      </div>
-    );
-  }
+  // ── Live RCA state ─────────────────────────────────────────────────────────
+  const [loading,     setLoading]     = useState(false);
+  const [rcaError,    setRcaError]    = useState<string | null>(null);
+  const [liveReport,  setLiveReport]  = useState<RecommendationReport | null>(null);
+  const [userQuery,   setUserQuery]   = useState("Why did my job fail?");
+  const [scenario,    setScenario]    = useState<ScenarioKey>("spark_failure");
 
-  // Detect new RecommendationReport format (has issue_profile) vs legacy AnalysisResult
-  const issueProfile: IssueProfileT | null = orchestratorData.issue_profile ?? null;
+  // ── Demo Incident checkbox state (only used when scenario === "demo_incident") ─
+  const [includeChecks, setIncludeChecks] = useState({
+    spark:   true,
+    airflow: true,
+    data:    true,
+    infra:   true,
+    change:  false,
+  });
+
+  // ── HandleRunRCA ────────────────────────────────────────────────────────────
+  const handleRunRCA = async () => {
+    setLoading(true);
+    setRcaError(null);
+    setLiveReport(null);
+    try {
+      let res: Response;
+
+      if (FROM_LOGS_SCENARIOS.has(scenario)) {
+        // Demo Incident path — use real fixture logs via /api/run_rca_from_logs
+        const body = {
+          scenario:   "demo_ohlcv_pipeline",
+          include:    includeChecks,
+          user_query: userQuery,
+        };
+        res = await fetch("/api/run_rca_from_logs", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(body),
+        });
+      } else {
+        // Hard-coded fingerprint path — use /api/run_rca
+        const demo = DEMO_SCENARIOS[scenario];
+        const body = { user_query: userQuery, ...demo.payload };
+        res = await fetch("/api/run_rca", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(body),
+        });
+      }
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(`RCA request failed (${res.status}): ${msg.slice(0, 300)}`);
+      }
+      // Read body as text first so a mis-routed HTML page (e.g. the Vite SPA
+      // fallback) shows a readable error rather than "Unexpected token '<'".
+      const text = await res.text();
+      let data: RecommendationReport;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(
+          `Backend returned non-JSON response. ` +
+          `Check that the FastAPI server is running and the Vite proxy is ` +
+          `forwarding /api/run_rca* to http://127.0.0.1:8000.\n\n` +
+          `First 200 chars: ${text.slice(0, 200)}`
+        );
+      }
+      setLiveReport(data);
+    } catch (e: any) {
+      setRcaError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Effective data: live API result takes priority over static artifact ─────
+  const effectiveData: any = liveReport ?? orchestratorData;
+
+  // ── Detect new RecommendationReport format (has issue_profile) ─────────────
+  const issueProfile: IssueProfileT | null = effectiveData?.issue_profile ?? null;
+
+  // ── Prioritized fixes: use typed Fix[] from live report, fallback to mapped strings
+  const prioritizedFixes: Fix[] = liveReport?.prioritized_fixes ?? [];
 
   // ── Executive summary / findings / recommendations ─────────────────────────
   const summary: string =
-    orchestratorData.executive_summary ||
-    orchestratorData.summary           ||
+    effectiveData?.executive_summary ||
+    effectiveData?.summary           ||
     issueProfile?.log_analysis?.executive_summary ||
     "";
 
   const recommendations: string[] =
-    orchestratorData.recommendations ||
-    ((orchestratorData.prioritized_fixes ?? []) as any[])
+    effectiveData?.recommendations ||
+    ((effectiveData?.prioritized_fixes ?? []) as any[])
       .map((f: any) => `[${f.title}] ${f.description}`) ||
     [];
 
   const structFindings: Finding[] =
-    orchestratorData.findings            ||
+    effectiveData?.findings            ||
     issueProfile?.log_analysis?.findings ||
     [];
 
-  const keyFindings: string[] = orchestratorData.key_findings || [];
+  const keyFindings: string[] = effectiveData?.key_findings || [];
 
   // ── Problem type: prefer log_analysis so LogStatusCard maps correctly ──────
   const problemType: string =
     issueProfile?.log_analysis?.problem_type ||
     issueProfile?.dominant_problem_type      ||
-    orchestratorData.problem_type            ||
+    effectiveData?.problem_type              ||
     "unknown";
 
   // ── Confidence: issue_profile uses 0-1 → formatConfidence normalises both ─
   const confidence: number = issueProfile
     ? formatConfidence(issueProfile.overall_confidence)
-    : formatConfidence(orchestratorData.confidence ?? 0);
+    : formatConfidence(effectiveData?.confidence ?? 0);
 
   // ── Health score: prefer issue_profile overall, fallback to nested path ───
   const healthScore: number | null =
     issueProfile?.overall_health_score ??
-    orchestratorData?.raw_agent_responses?.root_cause?.metadata?.health_score?.overall_score ??
+    effectiveData?.raw_agent_responses?.root_cause?.metadata?.health_score?.overall_score ??
     null;
 
   const breakdown: Record<string, number> =
-    orchestratorData?.raw_agent_responses?.root_cause?.metadata?.health_score?.breakdown ?? {};
+    effectiveData?.raw_agent_responses?.root_cause?.metadata?.health_score?.breakdown ?? {};
 
   const agentsUsed: string[] =
-    orchestratorData.agents_used || issueProfile?.agents_invoked || [];
+    effectiveData?.agents_used || issueProfile?.agents_invoked || [];
 
   const totalTimeSec =
-    orchestratorData.total_processing_time_ms != null
-      ? (orchestratorData.total_processing_time_ms / 1000).toFixed(2)
+    effectiveData?.total_processing_time_ms != null
+      ? (effectiveData.total_processing_time_ms / 1000).toFixed(2)
       : null;
+
   const filteredFindings = structFindings
     .filter(f => severityFilter === "all" || resolvedSeverity(f) === severityFilter)
     .sort((a, b) =>
@@ -1080,6 +1311,169 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
       fontFamily: "Segoe UI, system-ui, -apple-system, Arial, sans-serif",
       color: COLOR.textPrimary, fontSize: 13,
     }}>
+
+      {/* ══ Run RCA control panel ══════════════════════════════════════════════ */}
+      <Card style={{ marginBottom: 20, padding: "16px 18px" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: COLOR.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+          Run RCA
+        </div>
+
+        {/* Row 1: query + scenario + button */}
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          {/* User query */}
+          <div style={{ flex: 3, minWidth: 200 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: COLOR.textSecond, marginBottom: 4 }}>
+              Query
+            </label>
+            <input
+              type="text"
+              value={userQuery}
+              onChange={e => setUserQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !loading && handleRunRCA()}
+              disabled={loading}
+              placeholder="Describe the problem…"
+              style={{
+                width: "100%", padding: "7px 10px",
+                border: `1px solid ${COLOR.border}`, borderRadius: 7,
+                fontSize: 13, color: COLOR.textPrimary,
+                background: loading ? COLOR.bg : COLOR.surface,
+                outline: "none", boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* Scenario */}
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: COLOR.textSecond, marginBottom: 4 }}>
+              Scenario
+            </label>
+            <select
+              value={scenario}
+              onChange={e => {
+                const key = e.target.value as ScenarioKey;
+                setScenario(key);
+                setUserQuery(DEMO_SCENARIOS[key].defaultQuery);
+              }}
+              disabled={loading}
+              style={{
+                width: "100%", padding: "7px 10px",
+                border: `1px solid ${COLOR.border}`, borderRadius: 7,
+                fontSize: 13, color: COLOR.textPrimary,
+                background: loading ? COLOR.bg : COLOR.surface,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {SCENARIO_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={handleRunRCA}
+            disabled={loading}
+            style={{
+              padding: "8px 22px", borderRadius: 7, border: "none",
+              background: loading ? COLOR.blueBg : COLOR.blue,
+              color: loading ? COLOR.blue : "#fff",
+              fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap", transition: "background 0.15s",
+              display: "flex", alignItems: "center", gap: 8,
+            }}
+          >
+            {loading ? (
+              <>
+                <span style={{
+                  display: "inline-block", width: 13, height: 13,
+                  border: `2px solid ${COLOR.blue}`, borderTopColor: "transparent",
+                  borderRadius: "50%",
+                  animation: "spin 0.7s linear infinite",
+                }} />
+                Running…
+              </>
+            ) : "Run RCA"}
+          </button>
+        </div>
+
+        {/* Row 2: signal-source checkboxes (only visible for Demo Incident scenario) */}
+        {scenario === "demo_incident" && (
+          <div style={{ marginTop: 10, display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.textSecond }}>Include:</span>
+            {([
+              { key: "spark",   label: "Spark" },
+              { key: "airflow", label: "Airflow" },
+              { key: "data",    label: "Data Quality" },
+              { key: "infra",   label: "Infra" },
+              { key: "change",  label: "Git / Change" },
+            ] as const).map(({ key, label }) => (
+              <label key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12,
+                color: COLOR.textPrimary, cursor: loading ? "not-allowed" : "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={includeChecks[key]}
+                  disabled={loading}
+                  onChange={e => setIncludeChecks(prev => ({ ...prev, [key]: e.target.checked }))}
+                  style={{ cursor: loading ? "not-allowed" : "pointer" }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {/* Spinning keyframe (injected once) */}
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+        {/* Error banner */}
+        {rcaError && (
+          <div style={{
+            marginTop: 12, padding: "10px 14px",
+            background: COLOR.critical.bg, border: `1px solid ${COLOR.critical.border}`,
+            borderRadius: 7, fontSize: 12, color: COLOR.critical.text,
+            display: "flex", alignItems: "flex-start", gap: 8,
+          }}>
+            <span style={{ flexShrink: 0, fontWeight: 700 }}>✕</span>
+            <span>{rcaError}</span>
+          </div>
+        )}
+      </Card>
+
+      {/* ── Loading indicator ── */}
+      {loading && (
+        <div style={{
+          padding: "40px 20px", textAlign: "center",
+          color: COLOR.blue, fontSize: 13, fontWeight: 600,
+          border: `1px dashed ${COLOR.blueBorder}`, borderRadius: 10,
+          background: COLOR.blueBg, marginBottom: 20,
+        }}>
+          <div style={{
+            width: 32, height: 32, margin: "0 auto 12px",
+            border: `3px solid ${COLOR.blueBorder}`, borderTopColor: COLOR.blue,
+            borderRadius: "50%", animation: "spin 0.7s linear infinite",
+          }} />
+          Running RCA analysis…
+        </div>
+      )}
+
+      {/* ── Placeholder when neither live report nor static artifact is available ── */}
+      {!loading && !effectiveData && (
+        <div style={{
+          padding: "60px 20px", textAlign: "center",
+          color: COLOR.textMuted, fontSize: 13,
+          border: `1px dashed ${COLOR.border}`, borderRadius: 10,
+          background: COLOR.bg,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontWeight: 600, color: COLOR.textSecond, marginBottom: 6 }}>Run RCA to see results</div>
+          <div style={{ fontSize: 12 }}>Select a scenario above, then click <strong>Run RCA</strong>.</div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          Results — only rendered when effectiveData is available
+      ══════════════════════════════════════════════════════════════════════════ */}
+      {effectiveData && !loading && (<>
 
       {/* ── Top metric cards ── */}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
@@ -1127,6 +1521,11 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
       {/* ── Cross-agent correlations ── */}
       {issueProfile && issueProfile.correlations?.length > 0 && (
         <CorrelationsSection correlations={issueProfile.correlations} />
+      )}
+
+      {/* ── Prioritized fixes (live report only) ── */}
+      {prioritizedFixes.length > 0 && (
+        <PrioritizedFixesSection fixes={prioritizedFixes} />
       )}
 
       {/* ── Structured findings (collapsible + filter) ── */}
@@ -1201,7 +1600,10 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
       )}
 
       {/* ── Agents footer ── */}
-      <AgentsFooter data={orchestratorData} />
+      <AgentsFooter data={effectiveData} />
+
+      {/* close the effectiveData guard */}
+      </>)}
     </div>
   );
 }
