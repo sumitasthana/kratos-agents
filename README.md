@@ -194,7 +194,9 @@ The **RecommendationAgent** turns the `IssueProfile` into a `RecommendationRepor
 ***
 
 ## 📊 Dashboard
-![Demo RCA – Real Fixture Logs](screenshots/RCA_DEMO.png)
+![Demo RCA – Real Logs](screenshots/Logs_Dashboard.png)
+![Demo RCA – Agent Graph](screenshots/Visual_agent_graph.png)
+![Demo RCA – Recommendation](screenshots/Recommendation.png)
 The Vite + React dashboard provides:
 
 - **Demo RCA – Real Fixture Logs** page  
