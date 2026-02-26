@@ -66,6 +66,24 @@ class InfraAnalyzerAgent(BaseAgent):
     agent_type: AgentType = AgentType.INFRA_ANALYZER
     agent_name: str = "Infra Analyzer"
 
+    @property
+    def description(self) -> str:
+        return (
+            "Analyzes cluster infrastructure and observability metrics — CPU, memory, "
+            "disk and network I/O, worker capacity, task queue depth, and autoscaling "
+            "events — to surface resource saturation and capacity risk."
+        )
+
+    @property
+    def system_prompt(self) -> str:
+        return (
+            "You are an infrastructure reliability analyst. Given cluster observability "
+            "metrics, identify resource saturation signals (CPU pressure, memory "
+            "exhaustion, worker loss, task queue buildup, problematic autoscaling). "
+            "Report each issue with a severity level (CRITICAL / HIGH / MEDIUM / LOW) "
+            "and a concise root-cause explanation."
+        )
+
     def __init__(self, llm_config: Optional[LLMConfig] = None) -> None:
         super().__init__(llm_config or LLMConfig())
 

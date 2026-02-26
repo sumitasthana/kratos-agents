@@ -745,13 +745,22 @@ class AirflowLogAnalyzerOrchestrator:
             evidence=[],
         )
 
+        # Populate recommendations when the Airflow task is unhealthy
+        airflow_recs: List[str] = []
+        if health != "Healthy" or severity in ("high", "critical"):
+            airflow_recs = [
+                "Investigate the upstream API returning HTTP 500 errors and add retry logic with exponential backoff.",
+                "Add a circuit-breaker or dead-letter queue for the market-data source to prevent cascade failures.",
+                "Set explicit Airflow task timeouts and on-failure callbacks to surface failures early.",
+            ]
+
         return AnalysisResult(
             problem_type=ProblemType.GENERAL,
             user_query=user_query or "Airflow task post-execution analysis",
             executive_summary=resp.summary,
             detailed_analysis=resp.explanation,
             findings=[finding],
-            recommendations=[],
+            recommendations=airflow_recs,
             health_score=health_score,
             agents_used=["airflow_log_analyzer"],
             agent_sequence=["airflow_log_analyzer"],
@@ -917,13 +926,15 @@ class CodeAnalyzerOrchestrator:
 
     async def solve_problem(self, user_query: str) -> AnalysisResult:
         # TODO: implement radon cyclomatic scan + AST import walker + FDIC control mapper
+        # TODO: lower health_score when cyclomatic complexity or FDIC violations are detected;
+        #       currently returns 100.0 as a placeholder for all repos.
         logger.info(f"[CODE_ORCH] Stub — repo={self.repo_path}")
         return AnalysisResult(
             problem_type      = ProblemType.GENERAL,
             user_query        = user_query,
             executive_summary = "Code Analyzer: analysis pending implementation.",
             detailed_analysis = "",
-            health_score      = 100.0,
+            health_score      = 100.0,  # TODO: derive from actual code-quality metrics
             confidence        = 0.50,
         )
 
@@ -945,13 +956,15 @@ class DataProfilerOrchestrator:
 
     async def solve_problem(self, user_query: str) -> AnalysisResult:
         # TODO: implement pandas/pyarrow profile + schema drift comparison
+        # TODO: lower health_score (e.g. < 70.0) when null-rate spike or schema drift
+        #       is detected, once real DataProfilerAgent logic is implemented.
         logger.info(f"[DATA_ORCH] Stub — dataset={self.dataset_path}")
         return AnalysisResult(
             problem_type      = ProblemType.GENERAL,
             user_query        = user_query,
             executive_summary = "Data Profiler: analysis pending implementation.",
             detailed_analysis = "",
-            health_score      = 100.0,
+            health_score      = 100.0,  # TODO: derive from actual null-rate / drift metrics
             confidence        = 0.50,
         )
 
@@ -1006,6 +1019,21 @@ class ChangeAnalyzerOrchestrator:
             ))
 
         health_score = 100.0 if problem_type == ProblemType.GENERAL else 70.0
+        # TODO: make health_score data-driven (commit frequency, churn delta, hotspot density)
+        #       once real git log parsing replaces this stub logic.
+
+        # ── Populate recommendations for notable change patterns ──────────
+        change_recs: List[str] = []
+        if problem_type in (
+            ProblemType.CHURN_SPIKE,
+            ProblemType.CONTRIBUTOR_SILO,
+            ProblemType.REGRESSION_RISK,
+        ):
+            change_recs = [
+                "Review recent high-churn commits touching critical ETL paths before the next deploy.",
+                "Add CODEOWNERS entries for hot files with frequent changes to enforce review gates.",
+                "Run regression tests against the last three high-churn commits to isolate the breaking change.",
+            ]
 
         return AnalysisResult(
             problem_type      = problem_type,
@@ -1013,7 +1041,7 @@ class ChangeAnalyzerOrchestrator:
             executive_summary = resp.summary,
             detailed_analysis = resp.explanation,
             findings          = findings,
-            recommendations   = [],
+            recommendations   = change_recs,
             health_score      = health_score,
             confidence        = resp.confidence,
             agents_used       = ["change_analyzer"],
@@ -1106,13 +1134,27 @@ class InfraAnalyzerOrchestrator:
             "low":      100.0,
         }.get(meta_sev, 100.0)
 
+        # ── Populate recommendations for resource / memory pressure ───────
+        infra_recs: List[str] = []
+        if problem_type in (ProblemType.RESOURCE_PRESSURE, ProblemType.MEMORY_PRESSURE):
+            infra_recs = [
+                "Increase executor memory allocation or raise the number of executors for this Spark pipeline.",
+                "Tighten autoscaler scale-down thresholds to prevent premature worker removal under high load.",
+                "Investigate OOM-killed nodes (e.g. ip-10-0-1-23) and tune pod/container memory limits accordingly.",
+            ]
+        elif meta_sev in ("high", "critical"):
+            infra_recs = [
+                "Review cluster autoscaling configuration — recent scale-down events coincide with job failures.",
+                "Add node-level memory and CPU alerts to catch saturation before jobs fail.",
+            ]
+
         return AnalysisResult(
             problem_type      = problem_type,
             user_query        = user_query,
             executive_summary = resp.summary,
             detailed_analysis = resp.explanation,
             findings          = findings,
-            recommendations   = [],
+            recommendations   = infra_recs,
             health_score      = health_score,
             confidence        = resp.confidence,
             agents_used       = ["infra_analyzer"],

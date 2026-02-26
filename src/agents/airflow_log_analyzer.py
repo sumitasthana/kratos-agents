@@ -122,7 +122,10 @@ class AirflowLogAnalyzerAgent(BaseAgent):
         return AgentResponse(
             agent_type=self.agent_type,
             agent_name=self.agent_name,
-            success=True,
+            # `success` reflects task health, not just whether the agent ran.
+            # True  = task was Healthy or Warning (completed, possibly with caveats).
+            # False = task was Critical (failed state, exhausted retries, etc.).
+            success=health != "Critical",
             summary=summary,
             explanation=explanation,
             key_findings=key_findings,

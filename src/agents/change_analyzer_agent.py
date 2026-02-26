@@ -37,6 +37,22 @@ class ChangeAnalyzerAgent(BaseAgent):
     agent_type: AgentType = AgentType.CHANGE_ANALYZER
     agent_name: str = "Change Analyzer"
 
+    @property
+    def description(self) -> str:
+        return (
+            "Analyzes git commit history to detect churn spikes, contributor silos, "
+            "and regression risk from recent code changes."
+        )
+
+    @property
+    def system_prompt(self) -> str:
+        return (
+            "You are a code-change risk analyst. Given a git commit fingerprint, "
+            "identify churn hotspots, contributor silo patterns, and files at "
+            "elevated regression risk. Report each issue with a severity level "
+            "(CRITICAL / HIGH / MEDIUM / LOW) and a concise explanation."
+        )
+
     def __init__(self, llm_config: Optional[LLMConfig] = None) -> None:
         super().__init__(llm_config or LLMConfig())
 
