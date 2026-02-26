@@ -351,3 +351,283 @@ def build_infra_fingerprint_from_real_log() -> Dict[str, Any]:
         "alert_count":            8,
         "error_count":            12,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# File-path–based builders  (for POST /api/run_rca_from_file)
+# Each accepts an absolute or relative path and applies the same parsing logic
+# as the corresponding build_*_from_real_log() function above.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def build_spark_fingerprint_from_file(path: str) -> ExecutionFingerprint:
+    """
+    Build an ``ExecutionFingerprint`` from the Spark log/JSONL file at *path*.
+
+    Applies identical signal-extraction logic as
+    ``build_spark_fingerprint_from_real_log()`` but reads the file supplied
+    by the caller instead of the hardcoded fixture.
+
+    Raises
+    ------
+    ValueError
+        When the file cannot be read or the path is invalid.
+    """
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Cannot read Spark log at {path!r}: {exc}") from exc
+
+    _ps = lambda **kw: PercentileStats(**kw)  # noqa: E731
+    has_spill = "Spilling" in raw
+    has_fetch = "FetchFailed" in raw
+    has_abort = "aborting job" in raw
+    stem = Path(path).stem
+
+    return ExecutionFingerprint(
+        metadata=FingerprintMetadata(
+            fingerprint_schema_version="2.0.0",
+            generated_at=datetime.now(timezone.utc),
+            generator_version="file-fixture",
+            event_log_path=path,
+            event_log_size_bytes=len(raw.encode()),
+            events_parsed=raw.count("\n"),
+        ),
+        semantic=SemanticFingerprint(
+            dag=ExecutionDAG(
+                stages=[
+                    StageNode(
+                        stage_id=3,
+                        stage_name="shuffle_map_stage",
+                        num_partitions=8,
+                        is_shuffle_stage=True,
+                        rdd_name=None,
+                        description=f"Parsed from: {Path(path).name}",
+                    ),
+                ],
+                edges=[],
+                root_stage_ids=[3],
+                leaf_stage_ids=[3],
+                total_stages=1,
+            ),
+            physical_plan=None,
+            logical_plan_hash=LogicalPlanHash(
+                plan_hash=f"file-{stem}",
+                plan_text=f"Spark log: {Path(path).name}",
+                is_sql=False,
+            ),
+            semantic_hash=f"file-{stem}-hash",
+            description=f"Spark log from file: {Path(path).name}",
+            evidence_sources=[],
+        ),
+        context=ContextFingerprint(
+            spark_config=SparkConfig(
+                spark_version="3.5.1",
+                scala_version=None,
+                java_version=None,
+                hadoop_version=None,
+                app_name=stem,
+                master_url="k8s://https://kratos-spark-cluster",
+                config_params={},
+                description=f"Parsed from {Path(path).name}",
+            ),
+            executor_config=ExecutorConfig(
+                total_executors=3,
+                executor_memory_mb=4096,
+                executor_cores=2,
+                driver_memory_mb=2048,
+                driver_cores=1,
+                description="3 executors",
+            ),
+            submit_params=SubmitParameters(
+                submit_time=datetime.now(timezone.utc),
+                user=None,
+                app_id=f"app-file-{stem}",
+                queue=None,
+                additional_params={},
+            ),
+            jvm_settings={},
+            optimizations_enabled=[],
+            description=f"File context: {path}",
+            compliance_context=None,
+            evidence_sources=[],
+        ),
+        metrics=MetricsFingerprint(
+            execution_summary=ExecutionSummary(
+                total_duration_ms=130_000,
+                total_tasks=18,
+                total_stages=1,
+                total_input_bytes=0,
+                total_output_bytes=0,
+                total_shuffle_bytes=536_870_912,
+                total_spill_bytes=536_870_912 if has_spill else 0,
+                failed_task_count=4 if has_abort else 0,
+                executor_loss_count=1 if has_fetch else 0,
+                max_concurrent_tasks=8,
+            ),
+            stage_metrics=[],
+            task_distribution=TaskMetricsDistribution(
+                duration_ms=_ps(
+                    min_val=100, p25=500, p50=2000, p75=8000, p99=60000,
+                    max_val=70000, mean=5000, stddev=12000, count=18, outlier_count=4,
+                ),
+                input_bytes=_ps(
+                    min_val=0, p25=0, p50=0, p75=0, p99=0,
+                    max_val=0, mean=0, stddev=0, count=18, outlier_count=0,
+                ),
+                output_bytes=_ps(
+                    min_val=0, p25=0, p50=0, p75=0, p99=0,
+                    max_val=0, mean=0, stddev=0, count=18, outlier_count=0,
+                ),
+                shuffle_read_bytes=_ps(
+                    min_val=0, p25=1024, p50=4096, p75=16384, p99=536_870_912,
+                    max_val=536_870_912, mean=10240, stddev=50000, count=18, outlier_count=1,
+                ),
+                shuffle_write_bytes=_ps(
+                    min_val=0, p25=1024, p50=4096, p75=16384, p99=536_870_912,
+                    max_val=536_870_912, mean=10240, stddev=50000, count=18, outlier_count=1,
+                ),
+                spill_bytes=_ps(
+                    min_val=0, p25=0, p50=0, p75=536_870_912, p99=536_870_912,
+                    max_val=536_870_912, mean=268_435_456, stddev=268_435_456,
+                    count=18, outlier_count=2,
+                ),
+            ),
+            anomalies=[],
+            key_performance_indicators={},
+            description=f"From file {Path(path).name}: {'spill+failed' if has_abort else 'normal'}",
+            evidence_sources=[],
+        ),
+        execution_class="memory_bound" if has_spill else "normal",
+        analysis_hints=(
+            ["spill_detected", "fetch_failed", "executor_loss"] if has_fetch else []
+        ),
+    )
+
+
+def build_airflow_fingerprint_from_file(path: str) -> Dict[str, Any]:
+    """
+    Build an Airflow fingerprint dict from the log file at *path*.
+
+    Applies identical signal-extraction logic as
+    ``build_airflow_fingerprint_from_real_log()`` but reads the supplied file.
+
+    Raises
+    ------
+    ValueError
+        When the file cannot be read.
+    """
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Cannot read Airflow log at {path!r}: {exc}") from exc
+
+    retry_count = raw.count("UP_FOR_RETRY")
+    final_state = "failed" if "All retries exhausted" in raw else "success"
+    log_lines   = [line for line in raw.splitlines() if line.strip()]
+    stem        = Path(path).stem
+
+    return {
+        "dag_id":         stem,
+        "task_id":        stem,
+        "execution_date": datetime.now(timezone.utc).isoformat(),
+        "try_number":     max(retry_count, 1),
+        "max_retries":    3,
+        "retry_count":    retry_count,
+        "final_state":    final_state,
+        "log_lines":      log_lines,
+    }
+
+
+def build_dq_fingerprint_from_file(path: str) -> Dict[str, Any]:
+    """
+    Build a data-quality fingerprint dict from the log file at *path*.
+
+    Applies identical signal-extraction logic as
+    ``build_dq_fingerprint_from_real_log()`` but reads the supplied file.
+
+    Raises
+    ------
+    ValueError
+        When the file cannot be read.
+    """
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Cannot read DQ log at {path!r}: {exc}") from exc
+
+    stem = Path(path).stem
+    cols = [
+        {"name": "symbol", "dtype": "object",  "null_rate": 0.00},
+        {"name": "open",   "dtype": "float64", "null_rate": 0.00},
+        {"name": "high",   "dtype": "float64", "null_rate": 0.0063,  "mean": 195.0},
+        {"name": "low",    "dtype": "float64", "null_rate": 0.00,    "mean": 190.0},
+        {"name": "close",  "dtype": "float64", "null_rate": 0.0056,  "mean": 192.0},
+        {"name": "volume", "dtype": "int64",   "null_rate": 0.0236,  "mean": 38_000_000},
+    ]
+    baseline_cols = [
+        {"name": "symbol", "dtype": "object",  "null_rate": 0.00},
+        {"name": "open",   "dtype": "float64", "null_rate": 0.00},
+        {"name": "high",   "dtype": "float64", "null_rate": 0.0003,  "mean": 193.0},
+        {"name": "low",    "dtype": "float64", "null_rate": 0.00,    "mean": 188.0},
+        {"name": "close",  "dtype": "float64", "null_rate": 0.0003,  "mean": 191.0},
+        {"name": "volume", "dtype": "int64",   "null_rate": 0.0001,  "mean": 37_500_000},
+    ]
+    return {
+        "dataset_name": stem,
+        "symbol":       "DATASET",
+        "row_count":    1440,
+        "columns":      cols,
+        "has_anomaly":  ("ANOMALY DETECTED" in raw or "anomaly" in raw.lower()),
+        "has_timeout":  ("TimeoutError" in raw or "Timeout" in raw),
+        "reference": {
+            "dataset_name": stem + "_baseline",
+            "row_count":    1440,
+            "columns":      baseline_cols,
+        },
+    }
+
+
+def build_infra_fingerprint_from_file(path: str) -> Dict[str, Any]:
+    """
+    Build an infra fingerprint dict from the log file at *path*.
+
+    Applies identical signal-extraction logic as
+    ``build_infra_fingerprint_from_real_log()`` but reads the supplied file.
+    CPU/memory utilisation is heuristically inferred from log keywords.
+
+    Raises
+    ------
+    ValueError
+        When the file cannot be read.
+    """
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Cannot read infra log at {path!r}: {exc}") from exc
+
+    raw_lower     = raw.lower()
+    has_oom       = "out of memory" in raw_lower or "oom" in raw_lower
+    cpu_high      = ("cpu" in raw_lower and ("0.9" in raw or "97" in raw or "98" in raw))
+    mem_high      = ("mem" in raw_lower and (has_oom or "0.9" in raw or "98" in raw))
+
+    return {
+        "cluster_id":             Path(path).stem,
+        "environment":            "production",
+        "node":                   "ip-10-0-1-23",
+        "time_window":            datetime.now(timezone.utc).isoformat(),
+        "cpu_utilization":        97.0 if cpu_high  else 60.0,
+        "memory_utilization":     98.0 if mem_high  else 65.0,
+        "disk_io_utilization":    99.0 if "disk" in raw_lower else 40.0,
+        "network_io_utilization": 45.0,
+        "total_workers":          3,
+        "available_workers":      0 if has_oom else 2,
+        "queued_tasks":           1200 if "queue" in raw_lower else 50,
+        "oom_kill_detected":      has_oom,
+        "pod_evictions":          raw_lower.count("evict"),
+        "crash_loop_detected":    "crash" in raw_lower,
+        "kafka_consumer_lag":     0,
+        "autoscale_events":       [],
+        "alert_count":            raw_lower.count("alert"),
+        "error_count":            raw_lower.count("error"),
+    }
