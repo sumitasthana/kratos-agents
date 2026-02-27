@@ -7,48 +7,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentResponse, AgentType
+from prompt_loader import load_prompt_content
 
 logger = logging.getLogger(__name__)
 
 
 # 1. ENHANCED PROMPT: Explicitly allows code/config as data sources
-GIT_DIFF_DATAFLOW_PROMPT = """You are a senior data engineer.
-
-You will be given git diffs (unified diff format) for code changes. Your job is to extract *data flow patterns* introduced or modified by the change.
-
-Data flow patterns to extract:
-- reads: sources of data (tables, files, APIs) being read. **INCLUDE: Raw code files (if processed as input), SQL files, and Schema definitions.**
-- writes: sinks of data (tables, files, APIs) being written. **INCLUDE: Generated configuration files (JSON/YAML), Data Quality Suites, and Reports.**
-- joins: join operations and join keys if available.
-- transformations: filters, projections/selects, aggregations/groupBy, unions, sorts, window functions, mapping/UDFs.
-
-Important:
-- Ignore *standard Python imports* (e.g., `from typing import ...`) unless they represent a data dependency (e.g., importing a specific Schema definition).
-- Treat logic flow (reading a SQL string -> parsing it -> writing a JSON) as a valid dataflow.
-- Prefer concrete artifacts: table names, file paths, formats, catalog/db.schema.table identifiers.
-
-Also classify the change from a banking/data perspective:
-- intent_categories: choose zero or more from (feature_engineering, validation, reconciliation, audit_trail, remediation, transformation, aggregation, masking, archival, metadata_management)
-- process_name: a short phrase like "account risk scoring" or "SQL to GEX conversion"
-- data_domains: choose zero or more from (accounts, customers, transactions, limits, collateral, regulatory_reporting, data_governance)
-
-Return STRICT JSON ONLY (no markdown) with this schema:
-{{
-  "intent_categories": ["feature_engineering"],
-  "process_name": "account risk scoring",
-  "data_domains": ["accounts", "transactions"],
-  "reads": [{{"source": "...", "evidence": "..."}}],
-  "writes": [{{"sink": "...", "evidence": "..."}}],
-  "joins": [{{"type": "...", "keys": ["..."], "evidence": "..."}}],
-  "transformations": [{{"type": "...", "details": "...", "evidence": "..."}}],
-  "notes": ["..."]
-}}
-
-Rules:
-- Only infer what is justified by the diff.
-- Prefer concrete artifacts (table names, paths, formats).
-- Keep evidence short (a relevant line or two).
-"""
+# Prompt loaded from prompts/git_diff_dataflow.yaml
+GIT_DIFF_DATAFLOW_PROMPT = load_prompt_content("git_diff_dataflow")
 
 
 @dataclass

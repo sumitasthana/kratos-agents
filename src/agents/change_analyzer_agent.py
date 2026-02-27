@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from agents.base import BaseAgent, AgentType
 from agents import AgentResponse, LLMConfig
+from prompt_loader import load_prompt_content
 
 
 class ChangeAnalyzerAgent(BaseAgent):
@@ -46,12 +47,8 @@ class ChangeAnalyzerAgent(BaseAgent):
 
     @property
     def system_prompt(self) -> str:
-        return (
-            "You are a code-change risk analyst. Given a git commit fingerprint, "
-            "identify churn hotspots, contributor silo patterns, and files at "
-            "elevated regression risk. Report each issue with a severity level "
-            "(CRITICAL / HIGH / MEDIUM / LOW) and a concise explanation."
-        )
+        # Loaded from prompts/change_analyzer.yaml
+        return load_prompt_content("change_analyzer")
 
     def __init__(self, llm_config: Optional[LLMConfig] = None) -> None:
         super().__init__(llm_config or LLMConfig())

@@ -16,31 +16,13 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .base import BaseAgent, AgentResponse, AgentType
+from prompt_loader import load_prompt_content
 
 logger = logging.getLogger(__name__)
 
 
-QUERY_UNDERSTANDING_PROMPT = """You are a Spark SQL expert who explains query execution plans in clear, accessible language.
-
-Your task is to analyze a Spark execution fingerprint and explain what the query/job does.
-
-Guidelines:
-1. Start with a high-level summary (1–2 sentences) of what the query accomplishes.
-2. Explain the data flow step-by-step, from input sources to final output.
-3. Highlight important operations: joins (and their strategies), aggregations, filters.
-4. Note any potential concerns visible in the plan (e.g., Cartesian products, full table scans).
-5. Use business-friendly language, but include technical terms where helpful.
-6. If SQL plan is available, focus on that; otherwise use the DAG structure.
-
-Output format (use these Markdown section headers):
-
-- **Summary**: 1–2 sentence overview
-- **Data Flow**: Step-by-step explanation
-- **Key Operations**: Important transformations with their strategies
-- **Observations**: Any notable patterns or potential concerns
-
-Be concise but thorough. Avoid jargon without explanation.
-"""
+# Prompt loaded from prompts/query_understanding.yaml
+QUERY_UNDERSTANDING_PROMPT = load_prompt_content("query_understanding")
 
 
 class QueryUnderstandingAgent(BaseAgent):

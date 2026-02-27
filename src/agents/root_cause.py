@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from .base import BaseAgent, AgentResponse, AgentType, LLMConfig
+from prompt_loader import load_prompt_content
 
 logger = logging.getLogger(__name__)
 
@@ -488,48 +489,11 @@ class RoutingInstructions:
 # LLM Prompts
 # ============================================================================
 
-ROOT_CAUSE_PROMPT = """\
-You are a Spark performance expert specialising in root cause analysis.
+# Prompt loaded from prompts/root_cause_spark.yaml
+ROOT_CAUSE_PROMPT = load_prompt_content("root_cause_spark")
 
-Analyse the Spark execution fingerprint and identify the root causes of any
-performance issues or anomalies.
-
-Output rules (STRICT):
-  * Begin with a one-line **Health Assessment** (Healthy / Warning / Critical).
-  * For EACH issue found, use EXACTLY this labeled block — no bullets, no numbers:
-
-      **<Issue Category>:**
-      **Symptom:** <what happened — reference actual metric values>
-      **Root Cause:** <why it happened>
-      **Impact:** <effect on job duration, resource usage, or correctness>
-      **Recommended Fix:** <specific, actionable fix with config key if applicable>
-
-  Issue categories: Task Failures | Memory Pressure | Data Skew |
-                    Shuffle Overhead | GC Pressure | Executor Loss
-
-  * End with a **Correlations** section (one paragraph) and a
-    **Recommendations** section (bullet list, prioritised).
-  * If no issues are found, state: Execution is healthy — no significant issues detected.
-  * Be concise. Reference real numbers from the fingerprint.
-"""
-
-GRC_RCA_PROMPT = """\
-You are a data governance and compliance expert specialising in root cause
-analysis for regulatory incidents.
-
-Root cause categories (pick ONE):
-  1. Data Pipeline Issue   — ETL, ingestion, transformation, or lineage problems
-  2. Control Design Issue  — missing or incorrect validation logic
-  3. Control Execution Issue — job failure, threshold misconfiguration
-  4. Process Issue         — manual dependency, timing, or ownership gaps
-
-Output format:
-  * **Incident Classification:** Control failure / Data breach / Process gap
-  * **Root Cause Category:** one of the four above
-  * **Regulatory Impact:** which regulations or policies are affected
-  * **Remediation Plan:** prioritised actions with owners and timelines
-  * **Preventive Measures:** new controls or processes needed
-"""
+# Prompt loaded from prompts/root_cause_grc.yaml
+GRC_RCA_PROMPT = load_prompt_content("root_cause_grc")
 
 
 # ============================================================================
