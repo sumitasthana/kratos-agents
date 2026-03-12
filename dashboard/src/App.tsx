@@ -238,6 +238,8 @@ import LineageGraph from "./LineageGraph";
 import GitDataflowGraph from "./GitDataflowGraph";
 import RCAFindings from "./RCAFindings";
 import DemoRCA from "./DemoRCA";
+import RCAWorkspace from "./RCAWorkspace";
+import JobDashboard from "./JobDashboard";
 
 // ── Simple hash-based page router ─────────────────────────────────────
 function useHash() {
@@ -357,6 +359,9 @@ function RunCard({
 export default function App() {
   const hash = useHash();
   const isDemoRCA = hash === "#demo-rca";
+  const isRCAWorkspace = hash === "#rca-workspace";
+  const jobsDashboardMatch = hash.match(/^#jobs\/(.+)\/dashboard$/);
+  const jobDashboardId = jobsDashboardMatch ? decodeURIComponent(jobsDashboardMatch[1]) : null;
 
   const [runs,          setRuns         ] = useState<RunManifest[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -476,8 +481,23 @@ export default function App() {
           </div>
         </div>
 
-        {/* ── Demo RCA nav link ── */}
+        {/* ── Nav links ── */}
         <div style={{ padding: "8px 0", borderBottom: "1px solid #1f2937" }}>
+          <a
+            href="#rca-workspace"
+            style={{
+              display: "block",
+              padding: "9px 14px",
+              borderLeft: isRCAWorkspace ? "2px solid #3b82f6" : "2px solid transparent",
+              background: isRCAWorkspace ? "#1a1f2e" : "transparent",
+              color: isRCAWorkspace ? "#e5e7eb" : "#9ca3af",
+              fontSize: 13,
+              fontWeight: isRCAWorkspace ? 500 : 400,
+              textDecoration: "none",
+            }}
+          >
+            RCA Workspace
+          </a>
           <a
             href="#demo-rca"
             style={{
@@ -577,7 +597,11 @@ export default function App() {
 
       {/* ══ MAIN PANEL ═══════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, marginLeft: 220, display: "flex", flexDirection: "column", overflow: "hidden", background: "#111318" }}>
-        {isDemoRCA ? (
+        {isRCAWorkspace ? (
+          <RCAWorkspace />
+        ) : jobDashboardId ? (
+          <JobDashboard jobId={jobDashboardId} />
+        ) : isDemoRCA ? (
           <DemoRCA />
         ) : selectedRun ? (
           <>
@@ -617,21 +641,21 @@ export default function App() {
                 borderBottom: "1px solid #f0f0f0",
               }}>
                 <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")}>
-                  📋 Overview
+                  Overview
                 </TabButton>
                 {(selectedRun.command === "orchestrate" || artifactData.orchestrator_json) && (
                   <TabButton active={activeTab === "rca"} onClick={() => setActiveTab("rca")}>
-                    🔍 RCA Findings
+                    RCA Findings
                   </TabButton>
                 )}
                 {(selectedRun.command === "git-dataflow" || artifactData.git_dataflow_json) && (
                   <TabButton active={activeTab === "git"} onClick={() => setActiveTab("git")}>
-                    🔀 Git Dataflow
+                    Git Dataflow
                   </TabButton>
                 )}
                 {(selectedRun.command === "lineage-extract" || artifactData.lineage_json) && (
                   <TabButton active={activeTab === "lineage"} onClick={() => setActiveTab("lineage")}>
-                    🔗 Lineage Map
+                    Lineage Map
                   </TabButton>
                 )}
               </div>

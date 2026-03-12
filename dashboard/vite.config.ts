@@ -29,8 +29,13 @@ export default defineConfig({
       "/api/run_rca": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
-      },
-      // ── Express artifact / history server (port 4173) ────────────────────
+      },      // ── CauseLink RCA workspace API (port 8001) ───────────────────────────────────
+      // Must be listed before /api/runs to avoid prefix clash.
+      "/api/rca": {
+        target: "http://127.0.0.1:8001",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api/, ""),
+      },      // ── Express artifact / history server (port 4173) ────────────────────
       // Routes served by `npm run server` (dashboard/server.js).
       // In dev mode Vite would otherwise fall back to serving index.html for
       // these paths, causing res.json() to receive <!doctype HTML.

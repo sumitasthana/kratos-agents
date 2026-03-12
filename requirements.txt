@@ -1,6 +1,10 @@
 # requirements.txt
 # Core AI/ML dependencies
 pydantic>=2.0
+
+# Neo4j driver (required for CauseLink ontology adapter — Phase A)
+# Requires Neo4j 5.0+ (uses elementId() API)
+neo4j>=5.0
 pandas>=2.0
 pyspark>=3.3
 pyyaml>=6.0

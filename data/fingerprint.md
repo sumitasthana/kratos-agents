@@ -2,10 +2,10 @@
 
 ## Metadata
 
-- **Generated**: 2026-02-26 16:31:30.891417
+- **Generated**: 2026-03-11 13:56:27.430460
 - **Application**: data/test_event_log.json
 - **Schema Version**: 1.0.0
-- **Events Parsed**: 312/312
+- **Events Parsed**: 310/310
 
 ## Execution Classification: `memory_bound`
 
@@ -55,25 +55,25 @@
 
 ### Execution Summary
 - **Duration**: 191.0 seconds
-- **Tasks**: 149 (failed: 0)
+- **Tasks**: 147 (failed: 0)
 - **Stages**: 3
-- **Input Data**: 2.4 MB
-- **Shuffle**: 95.8 MB
-- **Spill**: 50.1 MB
+- **Input Data**: 2.6 MB
+- **Shuffle**: 101.8 MB
+- **Spill**: 49.0 MB
 - **Max Concurrent Tasks**: 50
 
 ### Task Duration Distribution
-- **Min**: 127 ms
-- **P25**: 519 ms
-- **Median**: 1094 ms
-- **P75**: 1507 ms
-- **P99**: 1967 ms
-- **Max**: 1997 ms
-- **Outliers**: 0/149 tasks
+- **Min**: 104 ms
+- **P25**: 576 ms
+- **Median**: 1042 ms
+- **P75**: 1648 ms
+- **P99**: 1987 ms
+- **Max**: 2000 ms
+- **Outliers**: 0/147 tasks
 
 ### Key Performance Indicators
-- **throughput_bytes_per_sec**: 13239.38
-- **avg_task_duration_ms**: 1043.57
+- **throughput_bytes_per_sec**: 14065.75
+- **avg_task_duration_ms**: 1083.96
 - **task_failure_rate**: 0.00
 - **shuffle_to_input_ratio**: 39.73
 
@@ -81,21 +81,21 @@
 
 #### Stage 0
 - Tasks: 50 (failed: 0)
-- Duration: 1287 ms (median)
-- Input: 2.4 MB
+- Duration: 812 ms (median)
+- Input: 2.6 MB
 - Shuffle: 0.0 MB
 
 #### Stage 1
-- Tasks: 50 (failed: 0)
-- Duration: 988 ms (median)
+- Tasks: 47 (failed: 0)
+- Duration: 1090 ms (median)
 - Input: 0.0 MB
-- Shuffle: 49.5 MB
+- Shuffle: 48.4 MB
 
 #### Stage 2
-- Tasks: 49 (failed: 0)
-- Duration: 1033 ms (median)
+- Tasks: 50 (failed: 0)
+- Duration: 1225 ms (median)
 - Input: 0.0 MB
-- Shuffle: 46.3 MB
+- Shuffle: 53.4 MB
 
 ## Evidence Sources
 
@@ -111,5 +111,5 @@
 - BlockManagerAdded(3 events)
 
 ### Metrics
-- TaskEnd(149 events)
+- TaskEnd(147 events)
 - StageCompleted(3 events)

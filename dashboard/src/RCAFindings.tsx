@@ -173,15 +173,15 @@ function resolvedSeverity(f: Finding): string {
 
 function getLogStatusMeta(t: string): LogStatusMeta {
   switch (t?.toLowerCase()) {
-    case "healthy":           return { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d", badge: "#16a34a", icon: "✓", label: "Healthy",           category: "No Issues"           };
-    case "execution_failure": return { bg: "#fef2f2", border: "#fecaca", text: "#b91c1c", badge: "#dc2626", icon: "✕", label: "Execution Failure", category: "Job Failed"          };
-    case "memory_pressure":   return { bg: "#faf5ff", border: "#e9d5ff", text: "#7e22ce", badge: "#9333ea", icon: "▲", label: "Memory Pressure",   category: "Resource Issue"      };
-    case "shuffle_overhead":  return { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8", badge: "#2563eb", icon: "⇄", label: "Shuffle Overhead",  category: "Network I/O Issue"   };
-    case "data_skew":         return { bg: "#fefce8", border: "#fef08a", text: "#a16207", badge: "#ca8a04", icon: "≠", label: "Data Skew",         category: "Partition Issue"     };
-    case "performance":       return { bg: "#fffbeb", border: "#fde68a", text: "#b45309", badge: "#d97706", icon: "◎", label: "Performance",       category: "Optimization Needed" };
-    case "lineage":           return { bg: "#f0fdfa", border: "#99f6e4", text: "#0f766e", badge: "#0d9488", icon: "→", label: "Lineage",           category: "Data Flow"           };
-    case "general":           return { bg: "#f9fafb", border: "#e5e7eb", text: "#374151", badge: "#6b7280", icon: "≡", label: "General",           category: "General Analysis"    };
-    default:                  return { bg: "#f9fafb", border: "#e5e7eb", text: "#374151", badge: "#6b7280", icon: "—", label: t || "Unknown",      category: "Unknown"             };
+    case "healthy":           return { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d", badge: "#16a34a", icon: "OK",  label: "Healthy",           category: "No Issues"           };
+    case "execution_failure": return { bg: "#fef2f2", border: "#fecaca", text: "#b91c1c", badge: "#dc2626", icon: "X",   label: "Execution Failure", category: "Job Failed"          };
+    case "memory_pressure":   return { bg: "#faf5ff", border: "#e9d5ff", text: "#7e22ce", badge: "#9333ea", icon: "MEM", label: "Memory Pressure",   category: "Resource Issue"      };
+    case "shuffle_overhead":  return { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8", badge: "#2563eb", icon: "SHF", label: "Shuffle Overhead",  category: "Network I/O Issue"   };
+    case "data_skew":         return { bg: "#fefce8", border: "#fef08a", text: "#a16207", badge: "#ca8a04", icon: "SKW", label: "Data Skew",         category: "Partition Issue"     };
+    case "performance":       return { bg: "#fffbeb", border: "#fde68a", text: "#b45309", badge: "#d97706", icon: "PERF",label: "Performance",       category: "Optimization Needed" };
+    case "lineage":           return { bg: "#f0fdfa", border: "#99f6e4", text: "#0f766e", badge: "#0d9488", icon: "LIN", label: "Lineage",           category: "Data Flow"           };
+    case "general":           return { bg: "#f9fafb", border: "#e5e7eb", text: "#374151", badge: "#6b7280", icon: "GEN", label: "General",           category: "General Analysis"    };
+    default:                  return { bg: "#f9fafb", border: "#e5e7eb", text: "#374151", badge: "#6b7280", icon: "?",   label: t || "Unknown",      category: "Unknown"             };
   }
 }
 
@@ -206,7 +206,7 @@ function getSeverityStyle(s: string): SeverityStyle {
 function parseSummary(raw: string): ParsedSummary {
   // 1. Strip leading emoji, stray bold markers, markdown bold
   let clean = raw
-    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}✅✓✕]\s*/u, "")
+    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, "")
     .replace(/^\*+\s*/, "")
     .replace(/\*\*/g, "")
     .trim();
@@ -538,7 +538,7 @@ function ExecutiveSummary({ raw }: { raw: string }) {
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, fontSize: 12, color: COLOR.blue, marginTop: 1,
         }}>
-          ✓
+          OK
         </div>
         <p style={{ margin: 0, lineHeight: 1.7, fontSize: 13, color: "#374151" }}>
           {parsed.intro}
@@ -806,11 +806,11 @@ function AgentsFooter({ data }: { data: any }) {
 
 
 const ANALYZER_META: Record<string, { label: string; icon: string }> = {
-  log_analysis:    { label: "Log Analyzer",    icon: "📋" },
-  code_analysis:   { label: "Code Analyzer",   icon: "🔍" },
-  data_analysis:   { label: "Data Profiler",   icon: "📊" },
-  change_analysis: { label: "Change Analyzer", icon: "🔀" },
-  infra_analysis:  { label: "Infra Analyzer",   icon: "🖥️" },
+  log_analysis:    { label: "Log Analyzer",    icon: "[LOG]" },
+  code_analysis:   { label: "Code Analyzer",   icon: "[CODE]" },
+  data_analysis:   { label: "Data Profiler",   icon: "[DATA]" },
+  change_analysis: { label: "Change Analyzer", icon: "[CHG]" },
+  infra_analysis:  { label: "Infra Analyzer",   icon: "[INFRA]" },
 };
 
 function AnalyzerStrip({ issueProfile }: { issueProfile: IssueProfileT }) {
@@ -1154,7 +1154,7 @@ const SCENARIO_OPTIONS: { value: ScenarioKey; label: string }[] = [
   { value: "airflow_failure", label: "Airflow Failure"              },
   { value: "data_null_spike", label: "Data Null Spike"              },
   { value: "infra_pressure",  label: "Infra Pressure"               },
-  { value: "demo_incident",   label: "Demo Incident (Real Logs) ✦" },
+  { value: "demo_incident",   label: "Demo Incident (Real Logs)" },
 ];
 
 
@@ -1433,7 +1433,7 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
             borderRadius: 7, fontSize: 12, color: COLOR.critical.text,
             display: "flex", alignItems: "flex-start", gap: 8,
           }}>
-            <span style={{ flexShrink: 0, fontWeight: 700 }}>✕</span>
+            <span style={{ flexShrink: 0, fontWeight: 700 }}>X</span>
             <span>{rcaError}</span>
           </div>
         )}
@@ -1464,7 +1464,7 @@ export default function RCAFindings({ orchestratorData }: RCAFindingsProps) {
           border: `1px dashed ${COLOR.border}`, borderRadius: 10,
           background: COLOR.bg,
         }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>[RCA]</div>
           <div style={{ fontWeight: 600, color: COLOR.textSecond, marginBottom: 6 }}>Run RCA to see results</div>
           <div style={{ fontSize: 12 }}>Select a scenario above, then click <strong>Run RCA</strong>.</div>
         </div>

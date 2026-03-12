@@ -161,11 +161,11 @@ class ExecutionFingerprintGenerator:
 
         # Anomaly hints
         if metrics.anomalies:
-            hints.append(f"⚠️ {len(metrics.anomalies)} anomalies detected - investigate impact")
+            hints.append(f"WARNING: {len(metrics.anomalies)} anomalies detected - investigate impact")
 
         # High spill
         if metrics.execution_summary.total_spill_bytes > 100 * 1024 * 1024:  # > 100 MB
-            hints.append("🔴 High memory spill - consider increasing executor memory or reducing partition size")
+            hints.append("HIGH: High memory spill - consider increasing executor memory or reducing partition size")
 
         # Failed tasks
         if metrics.execution_summary.failed_task_count > 0:
@@ -173,15 +173,15 @@ class ExecutionFingerprintGenerator:
                 metrics.execution_summary.failed_task_count / metrics.execution_summary.total_tasks
             )
             if failure_rate > 0.01:
-                hints.append("🔴 Significant task failure rate - check executor logs for errors")
+                hints.append("HIGH: Significant task failure rate - check executor logs for errors")
 
         # High shuffle
         if metrics.execution_summary.total_shuffle_bytes > 5 * 1024 * 1024 * 1024:  # > 5 GB
-            hints.append("🟡 Large shuffle volume - consider optimizing join/groupBy logic")
+            hints.append("MEDIUM: Large shuffle volume - consider optimizing join/groupBy logic")
 
         # Config optimization opportunities
         if not context.optimizations_enabled:
-            hints.append("🟢 No optimizations detected - enable AQE for better performance")
+            hints.append("INFO: No optimizations detected - enable AQE for better performance")
 
         return hints
 

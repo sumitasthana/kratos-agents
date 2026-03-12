@@ -8,10 +8,10 @@ This guide provides step-by-step instructions for deploying the Kratos wiki to G
 
 Before deploying the wiki, ensure:
 
-1. ✅ You have write access to the repository
-2. ✅ GitHub wiki feature is enabled for the repository
-3. ✅ You have git configured locally
-4. ✅ All wiki content files are in the `wiki/` directory
+1. [PASS] You have write access to the repository
+2. [PASS] GitHub wiki feature is enabled for the repository
+3. [PASS] You have git configured locally
+4. [PASS] All wiki content files are in the `wiki/` directory
 
 ---
 
@@ -42,11 +42,11 @@ cd /path/to/kratos-agents/wiki
 ```
 
 The script will:
-1. ✅ Clone the wiki repository
-2. ✅ Copy all wiki pages
-3. ✅ Commit changes
-4. ✅ Push to GitHub
-5. ✅ Clean up temporary files
+1. [PASS] Clone the wiki repository
+2. [PASS] Copy all wiki pages
+3. [PASS] Commit changes
+4. [PASS] Push to GitHub
+5. [PASS] Clean up temporary files
 
 #### Step 3: Verify Deployment
 
@@ -213,10 +213,10 @@ git config --global user.email "your.email@example.com"
 
 **Solution**: Use wiki-style links without `.md` extension
 ```markdown
-# ✓ Correct
+# [PASS] Correct
 [Installation Guide](Installation-Guide)
 
-# ✗ Wrong
+# [FAIL] Wrong
 [Installation Guide](Installation-Guide.md)
 ```
 
@@ -233,28 +233,28 @@ git config --global user.email "your.email@example.com"
 
 After deployment, your wiki will have:
 
-### 📘 Getting Started (3 pages)
+###  Getting Started (3 pages)
 - Home - Landing page with overview
 - Installation Guide - Setup instructions
 - Quick Start Tutorial - First steps
 
-### 📗 Feature Guides (1+ pages)
+###  Feature Guides (1+ pages)
 - Spark Job Analysis - Complete Spark analysis guide
 - Git Dataflow Analysis - (planned)
 - Data Lineage Extraction - (planned)
 
-### 📙 Advanced Topics (planned)
+###  Advanced Topics (planned)
 - Dashboard Guide
 - Agent System
 - Custom Agents
 - API Reference
 
-### 📕 Help & Support (3 pages)
+###  Help & Support (3 pages)
 - Troubleshooting - Common issues
 - FAQ - Frequently asked questions
 - Examples - Real-world use cases
 
-### 🎯 Navigation
+### [TARGET] Navigation
 - _Sidebar - Navigation menu (appears on all pages)
 
 ---
@@ -348,10 +348,10 @@ Current wiki includes:
 
 ## Next Steps After Deployment
 
-1. ✅ Verify all pages deployed correctly
-2. ✅ Test all internal links
-3. ✅ Share wiki URL with team
-4. ✅ Add wiki link to README.md
+1. [PASS] Verify all pages deployed correctly
+2. [PASS] Test all internal links
+3. [PASS] Share wiki URL with team
+4. [PASS] Add wiki link to README.md
 5. ⏳ Create additional pages as needed
 6. ⏳ Add screenshots/diagrams
 7. ⏳ Set up automated deployment
@@ -391,4 +391,4 @@ git clone https://github.com/sumitasthana/kratos-agents.wiki.git
 
 **Version**: 1.0  
 **Last Updated**: February 2026  
-**Status**: Ready for Deployment 🚀
+**Status**: Ready for Deployment [LAUNCH]

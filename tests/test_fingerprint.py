@@ -25,10 +25,10 @@ def test_fingerprint_generation():
 
     # Verify structure
     print("\n=== Verification ===")
-    print(f"✓ Semantic Hash: {fingerprint.semantic.semantic_hash[:16]}...")
-    print(f"✓ Total Stages: {fingerprint.semantic.dag.total_stages}")
-    print(f"✓ Total Tasks: {fingerprint.metrics.execution_summary.total_tasks}")
-    print(f"✓ Execution Class: {fingerprint.execution_class}")
+    print(f"[OK] Semantic Hash: {fingerprint.semantic.semantic_hash[:16]}...")
+    print(f"[OK] Total Stages: {fingerprint.semantic.dag.total_stages}")
+    print(f"[OK] Total Tasks: {fingerprint.metrics.execution_summary.total_tasks}")
+    print(f"[OK] Execution Class: {fingerprint.execution_class}")
 
     # Print description
     print("\n=== High-Level Summary ===")
@@ -59,14 +59,14 @@ def test_output_formats():
     json_output = FingerprintFormatter.to_json(fingerprint, pretty=False)
     print(f"Length: {len(json_output)} chars")
     FingerprintFormatter.save_json(fingerprint, "data/fingerprint.json")
-    print("✓ Saved: data/fingerprint.json")
+    print("[OK] Saved: data/fingerprint.json")
 
     # Markdown
     print("\n=== Markdown Output ===")
     md_output = FingerprintFormatter.to_markdown(fingerprint)
     print(f"Length: {len(md_output)} chars")
     FingerprintFormatter.save_markdown(fingerprint, "data/fingerprint.md")
-    print("✓ Saved: data/fingerprint.md")
+    print("[OK] Saved: data/fingerprint.md")
 
     # YAML (if available)
     try:
@@ -74,12 +74,12 @@ def test_output_formats():
         yaml_output = FingerprintFormatter.to_yaml(fingerprint)
         print(f"Length: {len(yaml_output)} chars")
         FingerprintFormatter.save_yaml(fingerprint, "data/fingerprint.yaml")
-        print("✓ Saved: data/fingerprint.yaml")
+        print("[OK] Saved: data/fingerprint.yaml")
     except ImportError:
-        print("⊘ YAML not available (install pyyaml)")
+        print("[WARN] YAML not available (install pyyaml)")
 
 
 if __name__ == "__main__":
     test_fingerprint_generation()
     test_output_formats()
-    print("\n✓ All tests passed!")
+    print("\n[OK] All tests passed!")

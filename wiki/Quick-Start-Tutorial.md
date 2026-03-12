@@ -41,8 +41,8 @@ python -m src.cli fingerprint runs/spark_event_logs/sample_log.json
 
 **Output:**
 ```
-✓ Parsed 1,234 events
-✓ Generated fingerprint: fingerprint_20260209_014530.json
+[PASS] Parsed 1,234 events
+[PASS] Generated fingerprint: fingerprint_20260209_014530.json
   - Semantic Hash: abc123def456
   - Query Stages: 5
   - Total Duration: 125.4s
@@ -186,9 +186,9 @@ python -m src.cli git-log ./runs/cloned_repos/data-pipeline
 
 **Output:**
 ```
-✓ Extracted 234 commits
-✓ Analyzed 1,456 file changes
-✓ Saved to: git_artifacts_20260209_015030.json
+[PASS] Extracted 234 commits
+[PASS] Analyzed 1,456 file changes
+[PASS] Saved to: git_artifacts_20260209_015030.json
 ```
 
 ### Step 3: Analyze Dataflow Patterns

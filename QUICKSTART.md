@@ -301,10 +301,10 @@ for log_file in log_dir.glob("*.json"):
         with open(output_name, 'w') as f:
             f.write(fp.model_dump_json(indent=2))
         
-        print(f"  ✓ Duration: {fp.metrics.execution_summary.total_duration_ms/1000:.1f}s")
-        print(f"  ✓ Anomalies: {len(fp.metrics.anomalies)}")
+        print(f"  [PASS] Duration: {fp.metrics.execution_summary.total_duration_ms/1000:.1f}s")
+        print(f"  [PASS] Anomalies: {len(fp.metrics.anomalies)}")
     except Exception as e:
-        print(f"  ✗ Error: {e}")
+        print(f"  [FAIL] Error: {e}")
 ```
 
 ## Testing

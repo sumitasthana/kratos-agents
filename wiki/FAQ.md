@@ -239,10 +239,10 @@ Best results with:
 **Limited support**. Kratos works best with static table names:
 
 ```python
-# ✓ Good - static names
+# [PASS] Good - static names
 df = spark.read.table("customers")
 
-# ✗ Harder - dynamic names
+# [FAIL] Harder - dynamic names
 table_name = f"customers_{env}"
 df = spark.read.table(table_name)
 ```

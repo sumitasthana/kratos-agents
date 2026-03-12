@@ -159,6 +159,43 @@ app.post("/api/run_rca_from_logs", proxyToFastAPI);
 app.post("/api/run_rca_from_file", proxyToFastAPI);
 app.get("/api/logs/browse", proxyToFastAPI);
 
+// ── Proxy /api/rca/* → CauseLink RCA API on port 8001 ─────────────────────────────────
+// Handles: GET /api/rca/scenarios, POST /api/rca/chat/investigate,
+//           GET /api/rca/sessions/:id, GET /api/rca/jobs/:id/dashboard, etc.
+const CAUSELINK_PORT = 8001;
+
+function proxyToCauseLink(req, res) {
+  const body = [];
+  req.on("data", (chunk) => body.push(chunk));
+  req.on("end", () => {
+    const data = Buffer.concat(body);
+    const options = {
+      hostname: FASTAPI_HOST,
+      port:     CAUSELINK_PORT,
+      path:     req.url,
+      method:   req.method,
+      headers:  {
+        ...req.headers,
+        host:             `${FASTAPI_HOST}:${CAUSELINK_PORT}`,
+        "content-length": data.length,
+      },
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+    proxyReq.on("error", (err) => {
+      console.error("[dashboard] CauseLink proxy error:", err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ error: `CauseLink proxy error: ${err.message}` });
+      }
+    });
+    proxyReq.end(data);
+  });
+}
+
+app.use("/api/rca", (req, res) => proxyToCauseLink(req, res));
+
 // Static UI (built)
 const distDir = path.resolve(__dirname, "dist");
 if (fs.existsSync(distDir)) {

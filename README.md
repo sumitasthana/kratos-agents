@@ -10,7 +10,7 @@ Here’s a cleaned‑up, updated README you can drop in as `README.md` (replace 
 
 ***
 
-## 🚀 Overview
+## [LAUNCH] Overview
 
 Kratos is a **multi‑agent orchestration system** that performs automated root cause analysis (RCA) across distributed data platforms.
 
@@ -39,7 +39,7 @@ It is a **deterministic orchestration layer coordinating multiple analyzers**.
 [![GitHub Wiki](https://img.shields.io/badge/documentation-wiki-blue)](https://github.com/sumitasthana/kratos-agents/wiki)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 
-📚 **[Complete Documentation Available in Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** - Installation guides, tutorials, examples, troubleshooting, and more!
+[DOCS] **[Complete Documentation Available in Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** - Installation guides, tutorials, examples, troubleshooting, and more!
 
 ---
 
@@ -47,21 +47,21 @@ It is a **deterministic orchestration layer coordinating multiple analyzers**.
 
 Kratos is a comprehensive data engineering analysis platform that helps you understand and troubleshoot your data pipelines without needing to be an expert. It provides three main capabilities:
 
-### 1. **Spark Job Analysis** 📊
+### 1. **Spark Job Analysis** [CHART]
 Analyzes Apache Spark event logs to diagnose performance issues, explain query execution, and identify root causes of failures.
 
 **You provide**: A Spark event log file (automatically generated when Spark jobs run)  
 **Kratos creates**: A "fingerprint" — a structured summary of what happened during execution  
 **AI agents analyze**: The fingerprint and explain issues in plain English
 
-### 2. **Git Repository Dataflow Analysis** 🔄
+### 2. **Git Repository Dataflow Analysis** [SYNC]
 Extracts data flow patterns from your git repository's commit history to understand how data moves through your codebase.
 
 **You provide**: A git repository URL or local path  
 **Kratos extracts**: Commit diffs and code changes  
 **AI agents identify**: Data reads, writes, joins, transformations, and dataflow patterns
 
-### 3. **Data Lineage Extraction** 🔗
+### 3. **Data Lineage Extraction** [LINK]
 Analyzes ETL scripts to extract table and column-level data lineage, helping you understand data dependencies.
 
 **You provide**: Spark ETL scripts (.py, .sql)  
@@ -131,7 +131,7 @@ Kratos ingests Spark execution logs, generates an **ExecutionFingerprint**, and 
 
 ***
 
-## 🧠 What Kratos Analyzes
+## [AI] What Kratos Analyzes
 
 | Domain | Input               | Agent(s)                                   | Output                               |
 |--------|---------------------|--------------------------------------------|--------------------------------------|
@@ -145,7 +145,7 @@ Each agent emits an `AgentResponse`, which the orchestrators convert into an `An
 
 ***
 
-## 🏗 Architecture
+## [BUILD] Architecture
 
 ```text
 KratosOrchestrator
@@ -193,7 +193,7 @@ The **RecommendationAgent** turns the `IssueProfile` into a `RecommendationRepor
 
 ***
 
-## 📊 Dashboard
+## [CHART] Dashboard
 ![Demo RCA – Real Logs](screenshots/Logs_Dashboard.png)
 ![Demo RCA – Agent Graph](screenshots/Visual_agent_graph.png)
 ![Demo RCA – Recommendation](screenshots/Recommendation.png)
@@ -217,7 +217,7 @@ The backend is UI‑agnostic; the dashboard consumes pure JSON (`RecommendationR
 
 ***
 
-## 🏷 Problem Types
+##  Problem Types
 
 Kratos uses standardized problem types across agents:
 
@@ -240,7 +240,7 @@ Infra‑specific conditions (e.g., resource pressure) are expressed via `infra_a
 
 ***
 
-## 📐 Confidence Scoring (Spark Path)
+##  Confidence Scoring (Spark Path)
 
 Confidence for Spark RCA is derived from four components:
 
@@ -256,7 +256,7 @@ Confidence for Spark RCA is derived from four components:
 
 ***
 
-## 🔗 Cross‑Agent Correlation
+## [LINK] Cross‑Agent Correlation
 
 The triangulation layer detects patterns such as:
 
@@ -277,7 +277,7 @@ These correlations also feed into the recommendation layer to create cross‑dom
 
 ***
 
-## 📂 Project Structure
+## [DIR] Project Structure
 
 ```text
 kratos-agents/
@@ -315,7 +315,7 @@ kratos-agents/
 
 ***
 
-## ⚙ Setup
+## [CONFIG] Setup
 
 ### Backend
 
@@ -369,7 +369,7 @@ The dashboard proxies `/api/*` requests to the FastAPI backend.
 
 ## Documentation
 
-### 📚 Comprehensive Wiki
+### [DOCS] Comprehensive Wiki
 Visit our **[GitHub Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** for complete documentation:
 
 - **[Home](https://github.com/sumitasthana/kratos-agents/wiki/Home)** - Overview and navigation
@@ -380,7 +380,7 @@ Visit our **[GitHub Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** 
 - **[FAQ](https://github.com/sumitasthana/kratos-agents/wiki/FAQ)** - Frequently asked questions (40+)
 - **[Examples](https://github.com/sumitasthana/kratos-agents/wiki/Examples)** - Real-world use cases
 
-### 📖 Additional Documentation
+### [GUIDE] Additional Documentation
 - [QUICKSTART.md](QUICKSTART.md) - Detailed installation and usage guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical deep dive
 - [API_REFERENCE.md](API_REFERENCE.md) - Complete API documentation
@@ -465,7 +465,7 @@ for fix in report.prioritized_fixes:
 
 ***
 
-## 🧩 Design Principles
+## [MODULE] Design Principles
 
 - Deterministic orchestration over opaque single‑LLM reasoning.  
 - Clear separation of **analysis** (Python agents) and **presentation** (React).  
@@ -476,7 +476,7 @@ for fix in report.prioritized_fixes:
 
 ***
 
-## 🛠 Contributing
+## [TOOLS] Contributing
 
 ```bash
 git checkout -b arunesh/<feature-name>
@@ -494,7 +494,7 @@ Then open a pull request describing:
 
 ***
 
-## 👥 Authors
+## [USERS] Authors
 
 - **@sumitasthana** — Project lead, initial architecture.  
 - **@AruneshDev** — Orchestration engine, multi‑agent RCA, dashboard & demo flow.

@@ -394,10 +394,10 @@ Based on metrics characteristics, fingerprint is classified as:
 
 ### Analysis Hints
 LLM-focused annotations:
-- "⚠️ 3 anomalies detected - investigate impact"
-- "🔴 High memory spill - consider increasing executor memory"
-- "🟡 Large shuffle volume - optimize join logic"
-- "🟢 No optimizations detected - enable AQE"
+- "[WARN] 3 anomalies detected - investigate impact"
+- "[HIGH] High memory spill - consider increasing executor memory"
+- "[MED] Large shuffle volume - optimize join logic"
+- "[LOW] No optimizations detected - enable AQE"
 
 ---
 
@@ -625,7 +625,7 @@ Observations:
 
 **Produces**:
 ```
-Health Assessment: ⚠️ Warning (2 issues detected)
+Health Assessment: [WARN] Warning (2 issues detected)
 
 Issues Found:
 1. HIGH PRIORITY: Memory Spill (512MB detected)

@@ -602,7 +602,7 @@ class ContextFingerprintGenerator:
             env_update = env_events[0]
             spark_properties = env_update.get("Spark Properties", {})
             
-            # ✅ FIXED: Handle both dict and list of tuples
+            # Handle both dict and list of tuples
             if isinstance(spark_properties, dict):
                 for key, value in spark_properties.items():
                     config_params[key] = str(value)

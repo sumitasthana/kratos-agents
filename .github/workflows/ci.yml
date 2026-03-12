@@ -1,0 +1,131 @@
+# .github/workflows/ci.yml
+# CauseLink CI pipeline
+# Triggered on every push and pull request.
+# Jobs: test, emoji-check, lint, type-check
+# All jobs run in parallel on Python 3.11.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  # Use mock mode so no Neo4j instance is needed in CI
+  CAUSELINK_MOCK_MODE: "true"
+  NEO4J_URI: "bolt://localhost:7687"
+  NEO4J_USER: "neo4j"
+  NEO4J_PASSWORD: "changeme"
+  CAUSELINK_LOG_LEVEL: "WARNING"
+  CAUSELINK_LOG_FORMAT: "text"
+
+jobs:
+
+  # --------------------------------------------------------------------------
+  # Job 1 — Run the full test suite
+  # --------------------------------------------------------------------------
+  test:
+    name: pytest (Python 3.11)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -q --tb=short
+
+  # --------------------------------------------------------------------------
+  # Job 2 — Emoji gate (must have zero emoji in all source files)
+  # --------------------------------------------------------------------------
+  emoji-check:
+    name: Emoji gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan for emoji characters
+        run: |
+          python scripts/check_emojis.py \
+            src tests scripts dashboard/src \
+            README.md ARCHITECTURE.md IMPLEMENTATION.md \
+            QUICKSTART.md API_REFERENCE.md \
+            wiki \
+            --summary
+
+  # --------------------------------------------------------------------------
+  # Job 3 — Lint (syntax errors and undefined names only)
+  # --------------------------------------------------------------------------
+  lint:
+    name: flake8 lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run flake8 (errors only)
+        run: |
+          python -m flake8 src/ tests/ scripts/ \
+            --select=E9,F63,F7,F82 \
+            --max-line-length=120 \
+            --count \
+            --statistics
+
+  # --------------------------------------------------------------------------
+  # Job 4 — Static type check
+  # --------------------------------------------------------------------------
+  type-check:
+    name: mypy type-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install mypy + stubs
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+          pip install mypy types-PyYAML
+
+      - name: Run mypy (src/causelink only)
+        run: |
+          python -m mypy src/causelink/ \
+            --ignore-missing-imports \
+            --no-error-summary \
+            --no-strict-optional \
+            --follow-imports=silent

@@ -799,11 +799,16 @@ export default function DemoRCA() {
     setLogsError(null);
     try {
       const res  = await fetch("/api/logs/browse");
+      if (!res.ok) {
+        // Kratos API (port 8000) not running — show empty list, not a hard error
+        setLogFiles([]);
+        return;
+      }
       const text = await res.text();
-      if (!res.ok) throw new Error(`Browse failed (${res.status}): ${text.slice(0, 200)}`);
       setLogFiles(JSON.parse(text) as LogFileEntry[]);
     } catch (e: any) {
-      setLogsError(e?.message ?? String(e));
+      // Network error (ECONNREFUSED) — silently show empty list
+      setLogFiles([]);
     } finally {
       setLoadingLogs(false);
     }
