@@ -55,6 +55,45 @@ export default defineConfig({
         target: "http://127.0.0.1:4173",
         changeOrigin: true,
       },
+      // ── Demo API (port 8002) ─────────────────────────────────────────────
+      // The configure hook sets headers required for SSE (text/event-stream)
+      // so that Vite's proxy does not buffer the response and the browser
+      // EventSource receives events in real-time.
+      "/demo": {
+        target: "http://127.0.0.1:8002",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
+            // For SSE endpoints, signal that we accept event-stream.
+            if (req.url?.includes("/stream/")) {
+              proxyReq.setHeader("Accept", "text/event-stream");
+              proxyReq.setHeader("Cache-Control", "no-cache");
+              proxyReq.setHeader("X-Accel-Buffering", "no");
+            }
+          });
+          proxy.on("proxyRes", (proxyRes, req) => {
+            if (req.url?.includes("/stream/")) {
+              // Disable buffering so chunks arrive immediately.
+              proxyRes.headers["x-accel-buffering"] = "no";
+              proxyRes.headers["cache-control"] = "no-cache";
+            }
+          });
+        },
+      },
+      // Observability API — port 8003
+      "/obs": {
+        target: "http://127.0.0.1:8003",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
+            if (req.url?.includes("/stream")) {
+              proxyReq.setHeader("Accept", "text/event-stream");
+              proxyReq.setHeader("Cache-Control", "no-cache");
+              proxyReq.setHeader("X-Accel-Buffering", "no");
+            }
+          });
+        },
+      },
     },
   },
   build: {

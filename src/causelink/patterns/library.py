@@ -231,6 +231,74 @@ BUILT_IN_PATTERNS: List[HypothesisPattern] = [
         confidence_prior=0.50,
         chain="compliance",
     ),
+
+    # ── Demo scenario patterns (additive — do not remove) ─────────────────
+
+    HypothesisPattern(
+        pattern_id="DEMO-AGG-001",
+        name="AGG_STEP_DISABLED — batch aggregation step disabled in JCL",
+        description_template=(
+            "Incident {anchor_value} caused by ControlObjective {controlobjective_value} "
+            "failure: Rule {rule_value} not enforced because the Pipeline {pipeline_value} "
+            "Job {job_value} step is disabled in Script {script_value}. "
+            "Log signal: 'AGGRSTEP — skipped (disabled in JCL)'. "
+            "Defect: DEF-LDS-001 — batch/DAILY-INSURANCE-JOB.jcl Step 3 commented out."
+        ),
+        required_node_labels=frozenset({
+            "Incident", "ControlObjective", "Rule", "Pipeline", "Job", "Script"
+        }),
+        required_rel_types=frozenset({
+            "GENERATES", "MANDATES", "DEPENDS_ON", "RUNS_JOB", "USES_SCRIPT"
+        }),
+        required_evidence_types=frozenset({EvidenceType.LOG}),
+        anchor_types=frozenset({"Incident"}),
+        confidence_prior=0.85,
+        chain="compliance",
+    ),
+
+    HypothesisPattern(
+        pattern_id="DEMO-IRR-001",
+        name="IRR_NOT_IMPLEMENTED — trust IRR account type falls back to SGL",
+        description_template=(
+            "Incident {anchor_value} caused by ControlObjective {controlobjective_value} "
+            "failure: Rule {rule_value} not enforced because Pipeline {pipeline_value} "
+            "runs Job {job_value} which falls back to SGL via Script {script_value}. "
+            "Log signal: 'fallback ORC=SGL (IRR not implemented)'. "
+            "Defect: DEF-TCS-001 — cobol/TRUST-INSURANCE-CALC.cob IRR → SGL fallback."
+        ),
+        required_node_labels=frozenset({
+            "Incident", "ControlObjective", "Rule", "Pipeline", "Job", "Script"
+        }),
+        required_rel_types=frozenset({
+            "GENERATES", "MANDATES", "DEPENDS_ON", "RUNS_JOB", "USES_SCRIPT"
+        }),
+        required_evidence_types=frozenset({EvidenceType.LOG}),
+        anchor_types=frozenset({"Incident"}),
+        confidence_prior=0.85,
+        chain="compliance",
+    ),
+
+    HypothesisPattern(
+        pattern_id="DEMO-MT202-001",
+        name="MT202_HANDLER_MISSING — SWIFT MT202/MT202COV messages silently dropped",
+        description_template=(
+            "Incident {anchor_value} caused by ControlObjective {controlobjective_value} "
+            "failure: Rule {rule_value} not enforced because Pipeline {pipeline_value} "
+            "runs Job {job_value} whose Script {script_value} has no MT202 handler. "
+            "Log signal: 'silently dropped (no handler)'. "
+            "Defect: DEF-WTS-001 — python/swift_parser.py:parse_message() MT202 not handled."
+        ),
+        required_node_labels=frozenset({
+            "Incident", "ControlObjective", "Rule", "Pipeline", "Job", "Script"
+        }),
+        required_rel_types=frozenset({
+            "GENERATES", "MANDATES", "DEPENDS_ON", "RUNS_JOB", "USES_SCRIPT"
+        }),
+        required_evidence_types=frozenset({EvidenceType.LOG}),
+        anchor_types=frozenset({"Incident"}),
+        confidence_prior=0.85,
+        chain="compliance",
+    ),
 ]
 
 

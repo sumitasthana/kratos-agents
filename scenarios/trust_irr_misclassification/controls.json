@@ -1,0 +1,41 @@
+[
+  {
+    "control_id": "A3",
+    "name": "Fiduciary Documentation",
+    "regulation": "12 CFR § 330.13",
+    "description": "All Trust_Irrevocable (IRR) deposits must be classified and insured under the Irrevocable Trust category, applying per-beneficiary coverage of up to $250,000. The trust agreement and beneficiary schedule must be documented and applied correctly.",
+    "status": "FAILED",
+    "failure_reason": "IRR ownership category not implemented in TRUST-INSURANCE-CALC.cob — falls through to ORC=SGL (Single depositor) fallback. BeneficiaryClassifier.java also has IRR → SGL mapping in switch statement.",
+    "defect_id": "DEF-TCS-001",
+    "artifact": "operational_systems/trust_custody_system/cobol/TRUST-INSURANCE-CALC.cob",
+    "severity": "CRITICAL",
+    "last_tested": "2026-03-15T00:00:00Z",
+    "next_due": "2026-03-16T00:00:00Z"
+  },
+  {
+    "control_id": "A1",
+    "name": "Trust Account Data Completeness",
+    "regulation": "12 CFR § 330.13",
+    "description": "All trust accounts must be loaded from TRUST-MASTER before calculation begins.",
+    "status": "PASSED",
+    "failure_reason": null,
+    "defect_id": null,
+    "artifact": "operational_systems/trust_custody_system/batch/TRUST-DAILY-BATCH.jcl",
+    "severity": "HIGH",
+    "last_tested": "2026-03-16T06:00:00Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  },
+  {
+    "control_id": "A4",
+    "name": "Beneficiary Count Cap",
+    "regulation": "12 CFR § 330.13",
+    "description": "Revocable trust coverage is capped at 5 beneficiaries unless documentation supports more.",
+    "status": "WARNING",
+    "failure_reason": "config/trust-config.properties: rev.beneficiary.cap=5 is stale — regulation allows up to 250. DEF-TCS-002.",
+    "defect_id": "DEF-TCS-002",
+    "artifact": "operational_systems/trust_custody_system/config/trust-config.properties",
+    "severity": "MEDIUM",
+    "last_tested": "2026-03-16T07:00:00Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  }
+]

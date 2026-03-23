@@ -1,0 +1,41 @@
+[
+  {
+    "control_id": "C2",
+    "name": "Coverage Calculation Accuracy",
+    "regulation": "12 CFR § 330.1(b)",
+    "description": "Daily batch must aggregate all deposits at the depositor level across all accounts and ownership categories before computing FDIC insurance coverage. Single depositor SMDIA is $250,000. All accounts owned by the same depositor in the same ownership category (ORC) must be summed before applying the limit.",
+    "status": "FAILED",
+    "failure_reason": "AGGRSTEP (Step 3) is commented out in DAILY-INSURANCE-JOB.jcl — depositor aggregation is entirely skipped. Each account is evaluated independently against the $250,000 limit, causing systematic coverage overstatement.",
+    "defect_id": "DEF-LDS-001",
+    "artifact": "operational_systems/legacy_deposit_system/batch/DAILY-INSURANCE-JOB.jcl",
+    "severity": "CRITICAL",
+    "last_tested": "2026-03-15T00:00:00Z",
+    "next_due": "2026-03-16T00:00:00Z"
+  },
+  {
+    "control_id": "C1",
+    "name": "Data Load Completeness",
+    "regulation": "12 CFR § 330.1",
+    "description": "All active accounts must be loaded from ACCT-MASTER before the insurance calculation begins.",
+    "status": "PASSED",
+    "failure_reason": null,
+    "defect_id": null,
+    "artifact": "operational_systems/legacy_deposit_system/batch/DAILY-INSURANCE-JOB.jcl",
+    "severity": "HIGH",
+    "last_tested": "2026-03-16T02:15:42Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  },
+  {
+    "control_id": "C3",
+    "name": "ORC Code Validation",
+    "regulation": "12 CFR § 330.3",
+    "description": "Every account must have a valid ORC code before insurance is calculated.",
+    "status": "WARNING",
+    "failure_reason": "476 Business_LLC accounts are mapped to Individual party_type (ORC_PARTY_MISMATCH). Treated as compliance finding, not data error.",
+    "defect_id": null,
+    "artifact": "operational_systems/legacy_deposit_system/java/DepositService.java",
+    "severity": "MEDIUM",
+    "last_tested": "2026-03-16T02:28:11Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  }
+]

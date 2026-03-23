@@ -1,0 +1,6 @@
+orc_code,orc_name,cfr_section,coverage_rule,max_coverage,requires_aggregation,requires_beneficiary_count,requires_participant_count,requires_collateral_check,status
+REV,Revocable Trust,12 CFR 330.10,PER_BENEFICIARY,250000,true,true,false,false,ACTIVE
+IRR,Irrevocable Trust,12 CFR 330.13,PER_NON_CONTINGENT_INTEREST,250000,true,true,false,false,NOT_IMPLEMENTED
+EBP,Employee Benefit Plan,12 CFR 330.14,PER_PARTICIPANT,250000,true,false,true,false,PARTIAL
+CUS,Custodial Account,12 CFR 330.6,PER_DEPOSITOR,250000,true,false,false,false,ACTIVE
+SGL,Single Ownership (Default),12 CFR 330.6,PER_DEPOSITOR,250000,true,false,false,false,ACTIVE

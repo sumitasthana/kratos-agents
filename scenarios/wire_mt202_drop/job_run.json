@@ -1,0 +1,23 @@
+{
+  "job_id": "WIRE-NIGHTLY-RECON-20260316",
+  "job_name": "WIRE-NIGHTLY-RECON",
+  "run_date": "2026-03-16",
+  "status": "FAILED",
+  "started_at": "2026-03-16T20:00:00Z",
+  "completed_at": "2026-03-16T22:03:17Z",
+  "duration_seconds": 7397,
+  "steps": [
+    {"step": 1, "name": "PARSESTEP",   "status": "COMPLETED_WITH_ERRORS", "started_at": "2026-03-16T20:00:01Z", "completed_at": "2026-03-16T21:30:00Z"},
+    {"step": 2, "name": "POSTINGSTEP", "status": "COMPLETED_WITH_ERRORS", "started_at": "2026-03-16T21:30:01Z", "completed_at": "2026-03-16T21:55:00Z"},
+    {"step": 3, "name": "RECONCSTEP",  "status": "FAILED",                "started_at": "2026-03-16T21:55:01Z", "completed_at": "2026-03-16T22:03:17Z"}
+  ],
+  "messages_received": 1247,
+  "messages_parsed": 1188,
+  "messages_dropped": 59,
+  "mt103_processed": 1188,
+  "mt202_dropped": 47,
+  "mt202cov_dropped": 12,
+  "gl_break_amount": 284700000,
+  "parser_module": "operational_systems/wire_transfer_system/python/swift_parser.py",
+  "log_path": "scenarios/wire_mt202_drop/logs/WIRE-NIGHTLY-RECON-20260316.log"
+}

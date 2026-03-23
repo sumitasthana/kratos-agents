@@ -240,6 +240,8 @@ import RCAFindings from "./RCAFindings";
 import DemoRCA from "./DemoRCA";
 import RCAWorkspace from "./RCAWorkspace";
 import JobDashboard from "./JobDashboard";
+import DemoPage from "./pages/DemoPage";
+import FdicDemo  from "./pages/FdicDemo";
 
 // ── Simple hash-based page router ─────────────────────────────────────
 function useHash() {
@@ -358,8 +360,10 @@ function RunCard({
 
 export default function App() {
   const hash = useHash();
-  const isDemoRCA = hash === "#demo-rca";
+  const isDemoRCA      = hash === "#demo-rca";
   const isRCAWorkspace = hash === "#rca-workspace";
+  const isDemoPage     = false;
+  const isFdicDemo     = hash === "#fdic-demo";
   const jobsDashboardMatch = hash.match(/^#jobs\/(.+)\/dashboard$/);
   const jobDashboardId = jobsDashboardMatch ? decodeURIComponent(jobsDashboardMatch[1]) : null;
 
@@ -513,6 +517,21 @@ export default function App() {
           >
             Demo RCA
           </a>
+          <a
+            href="#fdic-demo"
+            style={{
+              display: "block",
+              padding: "9px 14px",
+              borderLeft: isFdicDemo ? "2px solid #6366f1" : "2px solid transparent",
+              background: isFdicDemo ? "#1a1f2e" : "transparent",
+              color: isFdicDemo ? "#e5e7eb" : "#9ca3af",
+              fontSize: 13,
+              fontWeight: isFdicDemo ? 500 : 400,
+              textDecoration: "none",
+            }}
+          >
+            FDIC Demo v2
+          </a>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "10px 10px" }}>
 
@@ -601,6 +620,10 @@ export default function App() {
           <RCAWorkspace />
         ) : jobDashboardId ? (
           <JobDashboard jobId={jobDashboardId} />
+        ) : isFdicDemo ? (
+          <FdicDemo />
+        ) : isDemoPage ? (
+          <DemoPage />
         ) : isDemoRCA ? (
           <DemoRCA />
         ) : selectedRun ? (

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  System Configuration — FDIC Part 370 Deposit Insurance System
+  
+  KNOWN ISSUES:
+    - IRR ORC type missing from supported types
+    - Government deposit source set to MANUAL (should be automated)
+    - Processing estimated at 18 hours (approaching 24-hour limit)
+    - Data in transit encryption disabled
+    - No close-of-business cutoff time configured
+    - No certification auto-generation configured
+-->
+<system-config>
+    <institution>
+        <name>Covered Institution</name>
+        <fdic-cert-number>99999</fdic-cert-number>
+        <charter-type>national_bank</charter-type>
+        <primary-regulator>OCC</primary-regulator>
+        <part370-effective-date>2020-04-01</part370-effective-date>
+        <annual-certification-due>2026-04-01</annual-certification-due>
+    </institution>
+
+    <data-sources>
+        <source id="core_banking" status="active">
+            <name>Core Banking Platform</name>
+            <connection>jdbc:oracle:thin:@corebank-prod:1521/DEPOSITS</connection>
+            <refresh-hours>24</refresh-hours>
+            <extracts>customers,accounts,balances</extracts>
+        </source>
+        <source id="trust_system" status="active">
+            <name>Trust Administration System</name>
+            <connection>jdbc:sqlserver://trust-prod:1433;databaseName=TRUST_DB</connection>
+            <refresh-hours>24</refresh-hours>
+            <extracts>trust_accounts,beneficiaries</extracts>
+            <!-- BUG: beneficiary details NOT actually extracted -->
+        </source>
+        <source id="ira_system" status="active">
+            <name>IRA/Retirement Account System</name>
+            <connection>jdbc:oracle:thin:@ira-prod:1521/RETIREMENT</connection>
+            <refresh-hours>24</refresh-hours>
+            <extracts>ira_accounts</extracts>
+        </source>
+        <!-- BUG: No government deposit automated source -->
+        <source id="government" status="manual">
+            <name>Government Deposit Spreadsheets</name>
+            <connection>MANUAL_ENTRY</connection>
+            <refresh-hours>-1</refresh-hours>
+            <!-- Violates IT Guide Section 2.3.2 -->
+        </source>
+        <!-- MISSING: Loan system for offset calculations -->
+    </data-sources>
+
+    <processing>
+        <max-hours>24</max-hours>
+        <target-hours>8</target-hours>
+        <estimated-hours>18</estimated-hours>
+        <!-- BUG: No close-of-business cutoff time configured -->
+        <!-- 12 CFR 360.8 requires COB balance cutoff -->
+        <batch-size>50000</batch-size>
+        <parallel-threads>4</parallel-threads>
+    </processing>
+
+    <output>
+        <!-- BUG: Delimiter should be pipe (|) per FDIC spec -->
+        <delimiter>,</delimiter>
+        <encoding>UTF-8</encoding>
+        <qdf-version>2.0</qdf-version>
+        <are-version>1.0</are-version>
+        <generate-checksum>false</generate-checksum>
+        <encrypt-pii>false</encrypt-pii>
+        <output-path>/data/fdic_output</output-path>
+    </output>
+
+    <security>
+        <encryption-at-rest>AES-256</encryption-at-rest>
+        <!-- BUG: Data in transit NOT encrypted -->
+        <encryption-in-transit>NONE</encryption-in-transit>
+        <pii-masking>true</pii-masking>
+        <audit-logging>true</audit-logging>
+    </security>
+</system-config>

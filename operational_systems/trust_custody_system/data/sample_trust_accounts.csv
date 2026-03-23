@@ -1,0 +1,16 @@
+trust_id,trust_name,trust_type,grantor_id,grantor_name,grantor_ssn,trustee_id,trustee_name,balance,accrued_interest,beneficiary_count,participant_count,orc_assigned,trust_status,open_date
+TR-001,Johnson Family Revocable Trust,REV,GR-001,Robert A. Johnson,123-45-6789,TT-001,First Trust Company,1850000.00,12500.00,4,0,REV,A,2015-03-10
+TR-002,Williams Living Trust,REV,GR-002,Sarah M. Williams,234-56-7890,TT-001,First Trust Company,425000.00,3200.00,2,0,REV,A,2018-07-15
+TR-003,Johnson Irrevocable Life Insurance Trust,IRR,GR-001,Robert A. Johnson,123-45-6789,TT-002,Heritage Trust NA,2200000.00,0.00,3,0,SGL,A,2012-01-20
+TR-004,Northeast Teachers Pension Plan Trust,EBP,GR-003,NTPF Plan Sponsor,56-7890123,TT-003,Fidelity Trust Corp,45000000.00,285000.00,0,1247,EBP,A,2005-06-01
+TR-005,ACME Manufacturing 401(k) Trust,EBP,GR-004,ACME Manufacturing Inc.,45-6789012,TT-003,Fidelity Trust Corp,12500000.00,95000.00,0,342,EBP,A,2010-09-15
+TR-006,Chen Family Revocable Trust,REV,GR-005,James T. Chen,345-67-8901,TT-001,First Trust Company,680000.00,4100.00,6,0,REV,A,2020-02-28
+TR-007,Park IRA Custodial Account,CUS,GR-006,David Park,456-78-9012,TT-004,Custodial Services Inc,285000.00,1800.00,0,0,SGL,A,2019-11-05
+TR-008,Williams Charitable Remainder Trust,IRR,GR-002,Sarah M. Williams,234-56-7890,TT-002,Heritage Trust NA,750000.00,5600.00,2,0,SGL,A,2017-04-12
+TR-009,Philadelphia Municipal Trust,REV,GR-007,City of Philadelphia,23-4567890,TT-001,First Trust Company,5200000.00,32000.00,1,0,REV,A,2008-01-15
+TR-010,Johnson UTMA for Emily Johnson,CUS,GR-001,Robert A. Johnson,123-45-6789,TT-004,Custodial Services Inc,125000.00,950.00,1,0,SGL,A,2021-08-20
+TR-011,Teamsters Local 830 Pension Trust,EBP,GR-008,Teamsters Local 830,67-0123456,TT-003,Fidelity Trust Corp,28000000.00,175000.00,0,589,EBP,A,2003-03-01
+TR-012,Williams Revocable Trust B,REV,GR-002,Sarah M. Williams,234-56-7890,TT-001,First Trust Company,310000.00,2100.00,3,0,REV,A,2022-01-10
+TR-013,Commonwealth of PA Highway Trust,REV,GR-009,Commonwealth of Pennsylvania,23-0000001,TT-001,First Trust Company,8900000.00,55000.00,1,0,REV,A,2006-11-30
+TR-014,ACME Manufacturing ESOP Trust,EBP,GR-004,ACME Manufacturing Inc.,45-6789012,TT-003,Fidelity Trust Corp,6800000.00,42000.00,0,342,EBP,A,2014-07-01
+TR-015,Johnson Grandchildren Education Trust,IRR,GR-001,Robert A. Johnson,123-45-6789,TT-002,Heritage Trust NA,500000.00,3200.00,4,0,SGL,A,2019-05-15

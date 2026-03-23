@@ -1,0 +1,21 @@
+{
+  "job_id": "TRUST-DAILY-BATCH-20260316",
+  "job_name": "TRUST-DAILY-BATCH",
+  "run_date": "2026-03-16",
+  "status": "COMPLETED_WITH_ERRORS",
+  "started_at": "2026-03-16T06:00:00Z",
+  "completed_at": "2026-03-16T08:12:44Z",
+  "duration_seconds": 7964,
+  "steps": [
+    {"step": 1, "name": "LOADSTEP",   "status": "SUCCESS",               "started_at": "2026-03-16T06:00:01Z", "completed_at": "2026-03-16T06:22:15Z"},
+    {"step": 2, "name": "CLASSIFYSTEP","status": "COMPLETED_WITH_ERRORS", "started_at": "2026-03-16T06:22:16Z", "completed_at": "2026-03-16T07:15:00Z"},
+    {"step": 3, "name": "CALCSTEP",   "status": "COMPLETED_WITH_ERRORS", "started_at": "2026-03-16T07:15:01Z", "completed_at": "2026-03-16T08:10:00Z"},
+    {"step": 4, "name": "REPTSTEP",   "status": "SUCCESS",               "started_at": "2026-03-16T08:10:01Z", "completed_at": "2026-03-16T08:12:44Z"}
+  ],
+  "records_processed": 253,
+  "records_with_errors": 253,
+  "coverage_gap_estimate": 61800000,
+  "cobol_program": "operational_systems/trust_custody_system/cobol/TRUST-INSURANCE-CALC.cob",
+  "java_classifier": "operational_systems/trust_custody_system/java/BeneficiaryClassifier.java",
+  "log_path": "scenarios/trust_irr_misclassification/logs/TRUST-DAILY-BATCH-20260316.log"
+}

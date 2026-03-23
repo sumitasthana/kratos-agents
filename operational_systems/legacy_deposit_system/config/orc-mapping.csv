@@ -1,0 +1,12 @@
+orc_code,orc_name,cfr_section,coverage_rule,max_coverage,requires_natural_person,requires_signature_card,requires_beneficiary_data,requires_participant_data,requires_collateral,status
+SGL,Single Ownership,12 CFR 330.6,per_depositor,250000,Y,N,N,N,N,ACTIVE
+JNT,Joint Ownership,12 CFR 330.9,per_co_owner,250000,Y,Y,N,N,N,ACTIVE
+REV,Revocable Trust,12 CFR 330.10,per_beneficiary,250000,N,N,Y,N,N,ACTIVE
+BUS,Business/Organization,12 CFR 330.11,per_entity,250000,N,N,N,N,N,ACTIVE
+EBP,Employee Benefit Plan,12 CFR 330.14,per_participant,250000,N,N,N,Y,N,ACTIVE
+CRA,Certain Retirement Accounts,12 CFR 330.14(c),per_depositor,250000,Y,N,N,N,N,ACTIVE
+GOV1,Government - Federal,12 CFR 330.15,per_entity,250000,N,N,N,N,Y,ACTIVE
+GOV2,Government - State,12 CFR 330.15,per_entity,250000,N,N,N,N,Y,ACTIVE
+GOV3,Government - Municipal,12 CFR 330.15,per_entity,250000,N,N,N,N,Y,ACTIVE
+ANC,Annuity Contract,12 CFR 330.8,per_depositor,250000,N,N,N,N,N,ACTIVE
+IRR,Irrevocable Trust,12 CFR 330.13,per_beneficiary_interest,250000,N,N,Y,N,N,NOT_IMPLEMENTED

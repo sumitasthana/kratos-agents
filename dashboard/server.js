@@ -172,7 +172,9 @@ function proxyToCauseLink(req, res) {
     const options = {
       hostname: FASTAPI_HOST,
       port:     CAUSELINK_PORT,
-      path:     req.url,
+      // app.use('/api/rca') strips '/api/rca' from req.url, so restore '/rca'
+      // to match CauseLink's actual route prefix (e.g. /rca/scenarios)
+      path:     "/rca" + req.url,
       method:   req.method,
       headers:  {
         ...req.headers,
@@ -195,6 +197,50 @@ function proxyToCauseLink(req, res) {
 }
 
 app.use("/api/rca", (req, res) => proxyToCauseLink(req, res));
+
+// ── Proxy /demo/* → Demo API on port 8002 ────────────────────────────────────
+// Handles DemoPage endpoints: /demo/scenarios, /demo/investigations, /demo/stream/{id}, etc.
+const DEMO_API_PORT = 8002;
+
+function proxyToDemo(req, res) {
+  const body = [];
+  req.on("data", (chunk) => body.push(chunk));
+  req.on("end", () => {
+    const data = Buffer.concat(body);
+    // app.use('/demo') strips '/demo' from req.url; restore it
+    const targetPath = "/demo" + req.url;
+    const isSSE = targetPath.includes("/stream/");
+    const options = {
+      hostname: FASTAPI_HOST,
+      port:     DEMO_API_PORT,
+      path:     targetPath,
+      method:   req.method,
+      headers:  {
+        ...req.headers,
+        host:             `${FASTAPI_HOST}:${DEMO_API_PORT}`,
+        "content-length": data.length,
+        ...(isSSE ? { accept: "text/event-stream", "cache-control": "no-cache" } : {}),
+      },
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      if (isSSE) {
+        proxyRes.headers["x-accel-buffering"] = "no";
+        proxyRes.headers["cache-control"] = "no-cache";
+      }
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+    proxyReq.on("error", (err) => {
+      console.error("[dashboard] Demo API proxy error:", err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ error: `Demo API proxy error: ${err.message}` });
+      }
+    });
+    proxyReq.end(data);
+  });
+}
+
+app.use("/demo", (req, res) => proxyToDemo(req, res));
 
 // Static UI (built)
 const distDir = path.resolve(__dirname, "dist");

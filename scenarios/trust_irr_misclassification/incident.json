@@ -1,0 +1,22 @@
+{
+  "incident_id": "INC-002",
+  "title": "Trust_Irrevocable Accounts Misclassified as Single Depositor",
+  "description": "TRUST-DAILY-BATCH-20260316 detected that all Trust_Irrevocable (IRR) accounts are being processed under ORC=SGL (Single) fallback because the IRR branch was never implemented in TRUST-INSURANCE-CALC.cob. 253 IRR accounts totalling approximately $61.8M in coverage gap are affected. Fiduciary documentation obligation under 12 CFR § 330.13 has not been met.",
+  "severity": "CRITICAL",
+  "anchor_type": "Incident",
+  "anchor_id": "INC-002",
+  "control_id": "A3",
+  "control_name": "Fiduciary Documentation",
+  "regulation": "12 CFR § 330.13",
+  "defect_id": "DEF-TCS-001",
+  "defect_artifact": "operational_systems/trust_custody_system/cobol/TRUST-INSURANCE-CALC.cob",
+  "defect_description": "IRR ownership category branch not implemented in COBOL — falls back to SGL",
+  "reported_at": "2026-03-16T08:15:00Z",
+  "status": "OPEN",
+  "impact": {
+    "accounts_affected": 253,
+    "orc_code": "Trust_Irrevocable",
+    "coverage_gap_estimate": 61800000,
+    "misclassified_as": "Single"
+  }
+}
