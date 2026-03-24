@@ -7,7 +7,8 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.base_agent import BaseAgent, AgentType
-from core.base_agent import AgentResponse
+from core.base_agent import AgentResponse, AgentResult
+from core.models import IncidentContext
 from core.llm import LLMConfig
 
 
@@ -49,7 +50,37 @@ class DataProfilerAgent(BaseAgent):
     agent_name: str = "Data Profiler"
 
     def __init__(self, llm_config: Optional[LLMConfig] = None) -> None:
-        super().__init__(llm_config or LLMConfig())
+        # Heuristic agent — no LLM client needed.
+        # Bypasses BaseAgent.__init__(name, llm, tools) which requires a real LLM.
+        self.llm_config = llm_config or LLMConfig()
+        self._name = type(self).agent_name  # uses class-level attribute
+        self._llm_client = None
+        self._tools = []
+
+    @property
+    def description(self) -> str:
+        return (
+            "Profiles dataset quality: null rates, dtype distribution, "
+            "schema drift, and baseline comparison."
+        )
+
+    @property
+    def system_prompt(self) -> str:
+        return ""  # Rule-based, no LLM prompt needed.
+
+    async def invoke(self, context: IncidentContext) -> AgentResult:
+        """Heuristic invoke — delegates to :meth:`analyze`."""
+        fingerprint_data = (
+            context.metadata.get("fingerprint_data")
+            or context.metadata.get("data_profile")
+            or context.metadata
+        )
+        response = self.analyze(fingerprint_data=fingerprint_data)
+        return AgentResult(
+            agent_name=self.agent_name,
+            evidence=[],
+            recommendations=list(response.key_findings or []),
+        )
 
     # ------------------------------------------------------------------ #
     # Public entry point
@@ -340,3 +371,76 @@ class DataProfilerAgent(BaseAgent):
             return ("medium", "Minor data quality issues", 0.8)
 
         return ("high", "Significant data quality issues", 0.7)
+
+
+# ── BaseTool adapter ─────────────────────────────────────────────────────────
+
+import logging  # noqa: E402
+from tools.base_tool import BaseTool, agent_response_to_evidence  # noqa: E402
+from core.models import IncidentContext, EvidenceObject  # noqa: E402
+
+_logger = logging.getLogger(__name__)
+
+
+class DataQualityTool(BaseTool):
+    """
+    BaseTool-conforming wrapper around ``DataProfilerAgent``.
+
+    Reads ``context.metadata["data_profile"]`` (a dict with ``dataset_name``,
+    ``row_count``, ``columns`` and optional ``reference``) and returns
+    EvidenceObjects describing null rates, schema drift, and data health.
+    """
+
+    def __init__(self) -> None:
+        self._agent = DataProfilerAgent()
+
+    @property
+    def name(self) -> str:
+        return "DataQualityTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Profiles dataset quality: null rates, dtype distribution, and schema "
+            "drift vs a reference baseline."
+        )
+
+    def _parameters_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "incident_id": {
+                    "type": "string",
+                    "description": "Unique incident identifier",
+                },
+                "data_profile": {
+                    "type": "object",
+                    "description": (
+                        "Dataset snapshot: dataset_name, row_count, columns dict "
+                        "(null_rate, dtype, unique_rate), and optional reference baseline"
+                    ),
+                },
+            },
+            "required": ["incident_id"],
+        }
+
+    async def run(self, context: IncidentContext) -> list[EvidenceObject]:
+        profile_data = (
+            context.metadata.get("data_profile")
+            or context.metadata.get("fingerprint")
+            or {}
+        )
+        if not isinstance(profile_data, dict):
+            _logger.warning("%s: data_profile is not a dict, returning empty", self.name)
+            return []
+        try:
+            response = self._agent.analyze(fingerprint_data=profile_data)
+            return agent_response_to_evidence(
+                response,
+                tool_name=self.name,
+                regulation_ref=context.metadata.get("regulation_ref"),
+            )
+        except Exception as exc:
+            _logger.warning("%s.run failed: %s", self.name, exc, exc_info=True)
+            return []
+

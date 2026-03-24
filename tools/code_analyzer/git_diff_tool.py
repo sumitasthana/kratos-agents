@@ -719,3 +719,78 @@ async def _extract_from_git_artifacts_with_llm(
             commits_seen += 1
 
     return results
+
+
+# ── BaseTool adapter ─────────────────────────────────────────────────────────
+
+from tools.base_tool import BaseTool, agent_response_to_evidence  # noqa: E402
+from core.models import IncidentContext, EvidenceObject  # noqa: E402
+
+
+class GitDiffTool(BaseTool):
+    """
+    BaseTool-conforming wrapper around ``GitDiffDataFlowAgent``.
+
+    Reads ``context.metadata["git_artifacts"]`` (a dict with a ``files``
+    list of commit/diff entries) and produces EvidenceObjects describing
+    which data-flow patterns changed and which controls are at risk.
+    """
+
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self._agent = GitDiffDataFlowAgent(llm_config or LLMConfig())
+
+    @property
+    def name(self) -> str:
+        return "GitDiffTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Extracts data-flow patterns (reads/writes/joins/transforms) from git diff "
+            "artifacts to trace code changes to control failures."
+        )
+
+    def _parameters_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "incident_id": {
+                    "type": "string",
+                    "description": "Unique incident identifier",
+                },
+                "git_artifacts": {
+                    "type": "object",
+                    "description": (
+                        "Git diff artifacts: changed files, commit history, "
+                        "contributor map, and churn metrics over the failure window"
+                    ),
+                },
+                "time_window_hours": {
+                    "type": "integer",
+                    "description": "Lookback window in hours (default 72)",
+                    "default": 72,
+                },
+            },
+            "required": ["incident_id"],
+        }
+
+    async def run(self, context: IncidentContext) -> list[EvidenceObject]:
+        git_artifacts = (
+            context.metadata.get("git_artifacts")
+            or context.metadata.get("fingerprint")
+            or {}
+        )
+        if not isinstance(git_artifacts, dict):
+            logger.warning("%s: git_artifacts is not a dict, returning empty", self.name)
+            return []
+        try:
+            response = await self._agent.analyze(fingerprint_data=git_artifacts)
+            return agent_response_to_evidence(
+                response,
+                tool_name=self.name,
+                regulation_ref=context.metadata.get("regulation_ref"),
+            )
+        except Exception as exc:
+            logger.warning("%s.run failed: %s", self.name, exc, exc_info=True)
+            return []

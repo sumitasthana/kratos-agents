@@ -1077,3 +1077,74 @@ class RootCauseAgent(BaseAgent):
             f"- Notify     : {', '.join(routing.notify)}",
         ]
         return "\n".join(s)
+
+
+# ── BaseTool adapter ─────────────────────────────────────────────────────────
+
+from tools.base_tool import BaseTool, agent_response_to_evidence  # noqa: E402
+from core.models import IncidentContext, EvidenceObject  # noqa: E402 (already in scope via BaseAgent)
+
+
+class SparkLogTool(BaseTool):
+    """
+    BaseTool-conforming wrapper around ``RootCauseAgent`` for Spark log RCA.
+
+    Reads Spark execution metrics from ``context.metadata["spark_metrics"]``
+    (falls back to the top-level metadata dict) and returns ranked
+    EvidenceObjects for the shared evidence chain.
+    """
+
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self._agent = RootCauseAgent(llm_config or LLMConfig())
+
+    @property
+    def name(self) -> str:
+        return "SparkLogTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Analyzes Spark execution logs to identify root causes: memory spills, "
+            "data skew, task failures, and shuffle overhead."
+        )
+
+    def _parameters_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "incident_id": {
+                    "type": "string",
+                    "description": "Unique incident identifier",
+                },
+                "spark_metrics": {
+                    "type": "object",
+                    "description": (
+                        "Spark execution fingerprint: failed stages, executor OOM "
+                        "events, shuffle spill bytes, and skewed task counts"
+                    ),
+                },
+            },
+            "required": ["incident_id"],
+        }
+
+    async def run(self, context: IncidentContext) -> list[EvidenceObject]:
+        spark_data = (
+            context.metadata.get("spark_metrics")
+            or context.metadata.get("fingerprint")
+            or context.metadata
+        )
+        if not isinstance(spark_data, dict):
+            logger.warning("%s: spark_metrics is not a dict, returning empty", self.name)
+            return []
+        try:
+            response = await self._agent.analyze(fingerprint_data=spark_data)
+            return agent_response_to_evidence(
+                response,
+                tool_name=self.name,
+                regulation_ref=context.metadata.get("regulation_ref"),
+            )
+        except Exception as exc:
+            logger.warning("%s.run failed: %s", self.name, exc, exc_info=True)
+            return []
+

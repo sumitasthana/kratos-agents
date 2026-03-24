@@ -498,3 +498,80 @@ class AirflowLogAnalyzerAgent(BaseAgent):
             )
 
         return "\n".join(lines)
+
+
+# ── BaseTool adapter ─────────────────────────────────────────────────────────
+
+import logging  # noqa: E402
+from tools.base_tool import BaseTool, agent_response_to_evidence  # noqa: E402
+from core.models import IncidentContext, EvidenceObject  # noqa: E402
+
+_logger = logging.getLogger(__name__)
+
+
+class AirflowLogTool(BaseTool):
+    """
+    BaseTool-conforming wrapper around ``AirflowLogAnalyzerAgent``.
+
+    Reads ``context.metadata["airflow_logs"]`` — a dict with keys:
+    ``dag_id``, ``task_id``, ``execution_date``, ``try_number``,
+    ``max_retries``, ``log_lines[]`` — and produces EvidenceObjects
+    describing task failure patterns, retry storms, and SLA misses.
+    """
+
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self._agent = AirflowLogAnalyzerAgent(llm_config or LLMConfig())
+
+    @property
+    def name(self) -> str:
+        return "AirflowLogTool"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Analyzes Airflow task instance logs to detect task failures, retry "
+            "patterns, SLA misses, and upstream cascade failures."
+        )
+
+    def _parameters_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "incident_id": {
+                    "type": "string",
+                    "description": "Unique incident identifier",
+                },
+                "airflow_logs": {
+                    "type": "object",
+                    "description": (
+                        "Airflow task instance log dict: dag_id, task_id, "
+                        "execution_date, try_number, max_retries, log_lines[]"
+                    ),
+                },
+            },
+            "required": ["incident_id"],
+        }
+
+    async def run(self, context: IncidentContext) -> list[EvidenceObject]:
+        log_data = (
+            context.metadata.get("airflow_logs")
+            or context.metadata.get("fingerprint")
+            or {}
+        )
+        if not isinstance(log_data, dict) or not log_data.get("log_lines"):
+            _logger.warning(
+                "%s: missing or empty airflow_logs.log_lines in context.metadata",
+                self.name,
+            )
+            return []
+        try:
+            response = await self._agent.analyze(fingerprint_data=log_data)
+            return agent_response_to_evidence(
+                response,
+                tool_name=self.name,
+                regulation_ref=context.metadata.get("regulation_ref"),
+            )
+        except Exception as exc:
+            _logger.warning("%s.run failed: %s", self.name, exc, exc_info=True)
+            return []
