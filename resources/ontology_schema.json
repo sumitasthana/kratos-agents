@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Kratos ontology graph schema – entity types and relationship definitions",
+  "entities": [
+    {
+      "label": "Job",
+      "properties": ["job_id", "app_name", "trigger", "started_at", "status"]
+    },
+    {
+      "label": "Finding",
+      "properties": ["finding_id", "agent_type", "severity", "title", "description"]
+    },
+    {
+      "label": "Fix",
+      "properties": ["fix_id", "title", "description", "effort", "priority"]
+    },
+    {
+      "label": "ControlRef",
+      "properties": ["ref_id", "framework", "control_name", "description"]
+    },
+    {
+      "label": "Dataset",
+      "properties": ["name", "path", "schema_version", "row_count"]
+    },
+    {
+      "label": "Pipeline",
+      "properties": ["pipeline_id", "name", "dag_id", "stage_count"]
+    }
+  ],
+  "relationships": [
+    {"type": "HAS_FINDING",     "from": "Job",     "to": "Finding"},
+    {"type": "HAS_FIX",         "from": "Finding", "to": "Fix"},
+    {"type": "MAPS_TO_CONTROL", "from": "Finding", "to": "ControlRef"},
+    {"type": "READS",           "from": "Job",     "to": "Dataset"},
+    {"type": "WRITES",          "from": "Job",     "to": "Dataset"},
+    {"type": "PART_OF",         "from": "Job",     "to": "Pipeline"}
+  ]
+}

@@ -4,6 +4,9 @@ __pycache__/
 *.log
 *.pyc
 
+# Cleanup holding pen (remove with: Remove-Item _deprecated -Recurse -Force)
+_deprecated/
+
 
 # Virtual environments
 venv/

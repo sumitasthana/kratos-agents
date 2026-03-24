@@ -26,11 +26,11 @@ import React, { useState } from "react";
 
 import BootScreen          from "../components/BootScreen";
 import StatusBar           from "../components/StatusBar";
-import RcaTracePanel       from "../components/RcaTracePanel";
-import ControlScanPanel    from "../components/ControlScanPanel";
+import { RcaTracePanel }       from "../components/RcaTracePanel";
+import { ControlScanPanel }    from "../components/ControlScanPanel";
 import IncidentCardPanel   from "../components/IncidentCard";
 import RecommendationList  from "../components/RecommendationList";
-import ConfidenceGauge     from "../components/ConfidenceGauge";
+import { ConfidenceGauge }     from "../components/ConfidenceGauge";
 import SampleDataTable     from "../components/SampleDataTable";
 
 import { usePlatformBoot }  from "../hooks/usePlatformBoot";
@@ -730,23 +730,13 @@ export default function FdicDemo() {
             >
               {activeTab === "trace" && (
                 <div style={{ padding: 16 }}>
-                  <RcaTracePanel
-                    hops={invState?.backtrackChain ?? []}
-                    isRunning={loading}
-                    currentPhase={invState?.currentPhase ?? null}
-                    thoughts={thoughts}
-                    phases={invState?.phases ?? {}}
-                  />
+                  <RcaTracePanel result={null} />
                 </div>
               )}
 
               {activeTab === "controls" && (
                 <div style={{ padding: 16 }}>
-                  <ControlScanPanel
-                    result={controlResult}
-                    loading={controlLoading}
-                    error={controlError}
-                  />
+                  <ControlScanPanel controls={[]} loading={controlLoading} />
                 </div>
               )}
 
@@ -766,7 +756,7 @@ export default function FdicDemo() {
 
               {activeTab === "confidence" && (
                 <div style={{ padding: 16 }}>
-                  <ConfidenceGauge confidence={invState?.confidence ?? null} />
+                  <ConfidenceGauge confidence={null} />
                 </div>
               )}
 

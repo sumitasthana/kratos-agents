@@ -1,482 +1,187 @@
-/**
- * RcaTracePanel.tsx
- *
- * Live causal trace viewer — shows:
- *  1. Live agent banner (current agent + latest thought) while running
- *  2. Phase timeline (one row per completed phase with agent + summary)
- *  3. Hop-by-hop backtracking chain (fade-in per hop)
- *  4. "Next:" indicator for the upcoming phase
- */
+import React, { useState } from 'react';
+import type { RcaResult } from '../types';
 
-import React, { useEffect, useRef } from "react";
-import type { AgentThought, BacktrackHop, PhaseId, PhaseResult } from "../types/causelink";
-import { PHASE_LABELS, PHASE_ORDER } from "../constants/scenarios";
+interface Props { result: RcaResult | null; }
 
-interface Props {
-  hops:          BacktrackHop[];
-  isRunning?:    boolean;
-  currentPhase?: PhaseId | null;
-  thoughts?:     AgentThought[];
-  phases?:       Partial<Record<PhaseId, PhaseResult>>;
+const EFFORT_COLOR: Record<string, string> = {
+  LOW:    '#22c55e',
+  MEDIUM: '#f59e0b',
+  HIGH:   '#ef4444',
+};
+
+function effortColor(effort: string | undefined | null) {
+  const key = (effort ?? '').toUpperCase().split(' ')[0] || 'LOW';
+  return EFFORT_COLOR[key] ?? '#6b7280';
 }
 
-// Maps each phase to the primary agent name displayed in the timeline
-const PHASE_AGENT: Record<string, string> = {
-  INTAKE:        "DemoIntakeAgent",
-  LOGS_FIRST:    "DemoEvidenceAgent",
-  ROUTE:         "DemoRoutingAgent",
-  BACKTRACK:     "DemoBacktrackingAgent",
-  INCIDENT_CARD: "DemoIncidentAgent",
-  RECOMMEND:     "DemoRecommendAgent",
-  PERSIST:       "DemoRankerAgent",
-};
+export function RcaTracePanel({ result }: Props) {
+  const [expanded, setExpanded] = useState<number | null>(null);
 
-// Short sentence describing what each phase does
-const PHASE_DESCRIPTION: Record<string, string> = {
-  INTAKE:        "Validating scenario inputs and seeding investigation state",
-  LOGS_FIRST:    "Scanning job logs for anomaly signals",
-  ROUTE:         "Matching log signal to hypothesis pattern library",
-  BACKTRACK:     "Walking the causal ontology graph hop-by-hop",
-  INCIDENT_CARD: "Synthesising structured incident summary",
-  RECOMMEND:     "Generating ranked remediation actions from defect catalog",
-  PERSIST:       "Computing confidence score and confirming root cause",
-};
+  if (!result) return null;
 
-// Brief one-liner for what comes NEXT after each phase
-const NEXT_DESCRIPTION: Record<string, string> = {
-  INTAKE:        "scanning batch job logs for failure signals",
-  LOGS_FIRST:    "routing the detected signal to a hypothesis pattern",
-  ROUTE:         "backtracking the causal graph from the anchor incident",
-  BACKTRACK:     "building the structured incident card",
-  INCIDENT_CARD: "generating ranked remediation recommendations",
-  RECOMMEND:     "computing composite confidence and confirming root cause",
-  PERSIST:       "investigation complete",
-};
-
-// ── Thought-type display config ──────────────────────────────────────────────
-const THOUGHT_STYLE: Record<string, { icon: string; color: string }> = {
-  OBSERVING:     { icon: "◎", color: "#94a3b8" },
-  HYPOTHESISING: { icon: "◈", color: "#a78bfa" },
-  TESTING:       { icon: "◇", color: "#60a5fa" },
-  REJECTING:     { icon: "✕", color: "#f87171" },
-  ACCEPTING:     { icon: "✓", color: "#4ade80" },
-  CONCLUDING:    { icon: "★", color: "#f59e0b" },
-  WARNING:       { icon: "!", color: "#fb923c" },
-};
-
-const BADGE_FALLBACK = { label: "UNKNOWN", color: "#6b7280" };
-
-const BADGE_MAP: Partial<Record<string, { label: string; color: string }>> = {
-  // Canonical HopStatus values (from types/causelink.ts)
-  UNKNOWN:          { label: "UNKNOWN",          color: "#6b7280" },
-  CONFIRMED_FAILED: { label: "CONFIRMED FAILED", color: "#f87171" },
-  PASSING:          { label: "PASSING",          color: "#22c55e" },
-  ROOT_CAUSE:       { label: "ROOT CAUSE",       color: "#f59e0b" },
-  // Legacy / backend variant spellings — kept for backwards compat
-  pending:          { label: "PENDING",          color: "#6b7280" },
-  confirmed:        { label: "CONFIRMED FAILED", color: "#f87171" },
-  root_cause:       { label: "ROOT CAUSE",       color: "#f59e0b" },
-  artifact_defect:  { label: "CONFIRMED DEFECT", color: "#f87171" },
-};
-
-function inferLabel(nodeId: string): string {
-  const l = nodeId.toLowerCase();
-  if (l.includes("inc")) return "Incident";
-  if (l.includes("ctl")) return "Control";
-  if (l.includes("rul")) return "Rule";
-  if (l.includes("pip")) return "Pipeline";
-  if (l.includes("stp")) return "JobStep";
-  if (l.includes("mod")) return "Module";
-  if (l.includes("art") || l.includes("cob") || l.includes("bcj") || l.includes("swp")) return "Artifact";
-  return "Node";
-}
-
-// ── Injected CSS (keyframes for hop fade-in + agent pulse) ───────────────────
-const TRACE_CSS = `
-  @keyframes rca-hop-in {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0);    }
-  }
-  @keyframes rca-agent-dot {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.25; }
-  }
-  .rca-hop-row {
-    animation: rca-hop-in 0.35s ease both;
-  }
-  .rca-agent-dot {
-    animation: rca-agent-dot 1.1s ease-in-out infinite;
-  }
-`;
-
-const S = {
-  container: {
-    background: "#0d1117",
-    border: "1px solid #1e293b",
-    borderRadius: 10,
-    overflow: "hidden" as const,
-  },
-  header: {
-    padding: "14px 18px 12px",
-    borderBottom: "1px solid #1e293b",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    color: "#e2e8f0",
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase" as const,
-  },
-  body: {
-    padding: "16px 18px",
-  },
-  nodeRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: "5px 0",
-  },
-  bullet: (isRoot: boolean): React.CSSProperties => ({
-    color: isRoot ? "#f59e0b" : "#f87171",
-    fontSize: 15,
-    lineHeight: 1.3,
-    flexShrink: 0,
-    marginTop: 1,
-  }),
-  nodeId: {
-    color: "#e2e8f0",
-    fontWeight: 700,
-    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-    fontSize: 11,
-    minWidth: 160,
-  },
-  nodeLabel: {
-    color: "#64748b",
-    fontSize: 11,
-    minWidth: 100,
-  },
-  nodeDesc: {
-    color: "#475569",
-    fontSize: 11,
-    flex: 1,
-  },
-  badge: (color: string): React.CSSProperties => ({
-    background: color + "20",
-    color,
-    borderRadius: 4,
-    padding: "1px 8px",
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: "0.05em",
-    whiteSpace: "nowrap",
-  }),
-  edgeRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "1px 0 1px 25px",
-    color: "#1e293b",
-    fontSize: 11,
-    fontFamily: "'JetBrains Mono', monospace",
-  },
-  empty: {
-    color: "#334155",
-    fontSize: 13,
-    padding: "32px 0",
-    textAlign: "center" as const,
-  },
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-/** Pulsing banner: current agent + latest thought content */
-function LiveAgentBanner({
-  currentPhase,
-  thoughts,
-}: {
-  currentPhase: PhaseId;
-  thoughts: AgentThought[];
-}) {
-  const agent = PHASE_AGENT[currentPhase] ?? "Analyzer";
-  const latest = thoughts.length > 0 ? thoughts[thoughts.length - 1] : null;
-  const typeStyle = latest ? (THOUGHT_STYLE[latest.thought_type] ?? THOUGHT_STYLE.OBSERVING) : THOUGHT_STYLE.OBSERVING;
+  const pct    = Math.round((result.confidence?.composite ?? 0) * 100);
+  const locked = result.root_cause_final !== null;
+  const tierClr = locked ? 'text-green-400' : 'text-yellow-400';
 
   return (
-    <div
-      style={{
-        background: "#0f172a",
-        border: "1px solid #1e3a5f",
-        borderRadius: 8,
-        padding: "12px 14px",
-        marginBottom: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
-      {/* Top row: agent name + phase + pulsing dot */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span className="rca-agent-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#3b82f6", flexShrink: 0 }} />
-        <span style={{ color: "#60a5fa", fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
-          {agent}
-        </span>
-        <span style={{ color: "#1e293b", fontSize: 12 }}>|</span>
-        <span style={{ color: "#334155", fontSize: 11 }}>{PHASE_LABELS[currentPhase] ?? currentPhase}</span>
-        <span style={{ color: "#1e293b", fontSize: 12 }}>|</span>
-        <span style={{ color: "#6366f1", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>ANALYZING</span>
-      </div>
-
-      {/* Current phase description */}
-      <div style={{ color: "#475569", fontSize: 11, lineHeight: 1.5 }}>
-        {PHASE_DESCRIPTION[currentPhase] ?? "Processing…"}
-      </div>
-
-      {/* Latest thought */}
-      {latest && (
-        <div
-          style={{
-            background: "#0a0f1a",
-            border: `1px solid ${typeStyle.color}30`,
-            borderLeft: `3px solid ${typeStyle.color}`,
-            borderRadius: 4,
-            padding: "7px 10px",
-            display: "flex",
-            gap: 8,
-            alignItems: "flex-start",
-          }}
-        >
-          <span style={{ color: typeStyle.color, fontSize: 12, flexShrink: 0, marginTop: 1 }}>{typeStyle.icon}</span>
-          <span style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.5 }}>
-            {latest.content.length > 160 ? latest.content.slice(0, 160) + "…" : latest.content}
+    <div className="space-y-4 text-sm">
+      {/* Root cause block */}
+      <div className="rounded-lg border p-4 space-y-2"
+           style={{ background: 'var(--bg-card)', borderColor: 'var(--border-dim)' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">
+            Root Cause
           </span>
+          <span className={`text-[10px] font-bold ${tierClr}`}>
+            {locked ? '● LOCKED' : '○ PENDING'}
+          </span>
+        </div>
+        <p className={`font-mono text-xs ${locked ? 'text-green-300' : 'text-yellow-300'}`}>
+          {result.root_cause_final ?? 'Investigating — awaiting structural path validation'}
+        </p>
+      </div>
+
+      {/* Remediation actions */}
+      {result.remediation?.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">
+            Remediation — {result.remediation.length} action{result.remediation.length !== 1 ? 's' : ''}
+          </span>
+          {result.remediation.map((rem, i) => {
+            const isOpen = expanded === i;
+            const pctConf = Math.round((rem.confidence ?? 0) * 100);
+            return (
+              <div
+                key={i}
+                className="rounded-lg border overflow-hidden transition-all"
+                style={{ borderColor: isOpen ? '#3b82f6' : 'var(--border-dim)' }}
+              >
+                {/* Clickable header */}
+                <button
+                  className="w-full text-left px-3 py-2.5 flex items-start justify-between gap-2 group"
+                  style={{ background: isOpen ? 'var(--bg-code)' : 'var(--bg-panel)' }}
+                  onClick={() => setExpanded(isOpen ? null : i)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="text-[11px] font-bold flex-shrink-0 w-5 h-5 rounded-full
+                                 flex items-center justify-center"
+                      style={{ background: '#1e3a5f', color: '#60a5fa' }}
+                    >
+                      {rem.rank}
+                    </span>
+                    <span className="text-[11px] font-semibold truncate"
+                          style={{ color: 'var(--text-primary)' }}>
+                      {rem.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span
+                      className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+                      style={{ background: '#0f172a', color: '#60a5fa' }}
+                    >
+                      {rem.defect_id}
+                    </span>
+                    <span className="text-[10px] font-bold"
+                          style={{ color: effortColor(rem.effort) }}>
+                      {(rem.effort ?? 'N/A').toUpperCase().split(' ')[0]}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">
+                      {isOpen ? '▾' : '▸'}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Expanded detail */}
+                {isOpen && (
+                  <div className="px-3 pb-3 pt-1 space-y-2 border-t"
+                       style={{ borderColor: 'var(--border-dim)', background: 'var(--bg-card)' }}>
+                    <p className="text-[11px] leading-relaxed"
+                       style={{ color: 'var(--text-primary)' }}>
+                      {rem.action}
+                    </p>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-widest"
+                              style={{ color: 'var(--text-muted)' }}>Regulation</span>
+                        <p className="text-[10px] font-mono" style={{ color: '#60a5fa' }}>
+                          {rem.regulation}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-widest"
+                              style={{ color: 'var(--text-muted)' }}>Effort</span>
+                        <p className="text-[10px] font-semibold"
+                           style={{ color: effortColor(rem.effort) }}>
+                          {rem.effort ?? 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-widest"
+                              style={{ color: 'var(--text-muted)' }}>Confidence</span>
+                        <p className="text-[10px] font-mono" style={{ color: '#22c55e' }}>
+                          {pctConf}%
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[9px] font-mono truncate"
+                       style={{ color: 'var(--text-muted)' }}>
+                      {rem.artifact}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-    </div>
-  );
-}
 
-/** One row per completed phase — agent, summary, hop count */
-function PhaseTimelineRow({
-  phase,
-  result,
-  hopCount,
-}: {
-  phase: PhaseId;
-  result: PhaseResult;
-  hopCount: number;
-}) {
-  const agent = PHASE_AGENT[phase] ?? "Agent";
-  const isOk  = result.status === "OK" || result.status === "CONFIRMED" || result.status === "PASS";
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        padding: "6px 10px",
-        background: "#0a0f1a",
-        border: "1px solid #1e293b",
-        borderRadius: 6,
-        marginBottom: 4,
-        alignItems: "flex-start",
-      }}
-    >
-      {/* Status dot */}
-      <span style={{ color: isOk ? "#22c55e" : "#f87171", fontSize: 13, marginTop: 1, flexShrink: 0 }}>
-        {isOk ? "✓" : "✕"}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Phase label + agent */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const }}>
-          <span style={{ color: "#64748b", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>
-            {PHASE_LABELS[phase] ?? phase}
+      {/* Regulation citations */}
+      {result.regulation_citations?.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">
+            Regulation Citations
           </span>
-          <span style={{
-            background: "#1e293b",
-            color: "#475569",
-            borderRadius: 3,
-            padding: "1px 5px",
-            fontSize: 9,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>
-            {agent}
-          </span>
-          {hopCount > 0 && (
-            <span style={{ color: "#334155", fontSize: 9 }}>{hopCount} hop{hopCount !== 1 ? "s" : ""} revealed</span>
-          )}
-        </div>
-        {/* Summary text */}
-        <div style={{ color: "#334155", fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>
-          {result.summary}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Hop rows with fade-in animation */
-function HopChain({ hops }: { hops: BacktrackHop[] }) {
-  if (hops.length === 0) return null;
-  const lastHop = hops[hops.length - 1];
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      {/* Section label */}
-      <div style={{ color: "#1e293b", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 8 }}>
-        Causal Chain
-      </div>
-
-      {hops.map((hop, i) => {
-        const badge    = BADGE_MAP[hop.status] ?? BADGE_FALLBACK;
-        const isRoot   = hop.status === "ROOT_CAUSE";
-        const isSpec   = isRoot || hop.status === "CONFIRMED_FAILED";
-        const delay    = `${i * 60}ms`;
-        return (
-          <React.Fragment key={`${hop.fromNodeId}-${hop.hopIndex}`}>
-            <div
-              className="rca-hop-row"
-              style={{ ...S.nodeRow, animationDelay: delay }}
-            >
-              <span style={S.bullet(isSpec)}>{isSpec ? "◉" : "●"}</span>
-              <span style={S.nodeId}>{hop.fromNodeId}</span>
-              <span style={S.nodeLabel}>{hop.nodeLabel || inferLabel(hop.fromNodeId)}</span>
-              <span style={S.nodeDesc}>{hop.nodeName}</span>
-              <span style={S.badge(badge.color)}>{badge.label}</span>
+          {result.regulation_citations.map((cite, i) => (
+            <div key={i} className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="text-blue-500">§</span>{cite}
             </div>
-            <div style={S.edgeRow}>↓ {hop.relType}</div>
-          </React.Fragment>
-        );
-      })}
-
-      {/* Final destination node */}
-      <div
-        className="rca-hop-row"
-        style={{ ...S.nodeRow, animationDelay: `${hops.length * 60}ms` }}
-      >
-        <span style={S.bullet(true)}>◉</span>
-        <span style={S.nodeId}>{lastHop.toNodeId}</span>
-        <span style={S.nodeLabel}>{inferLabel(lastHop.toNodeId)}</span>
-        <span style={S.nodeDesc} />
-        <span style={S.badge((BADGE_MAP["CONFIRMED_FAILED"] ?? BADGE_FALLBACK).color)}>
-          CONFIRMED DEFECT
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Main export ───────────────────────────────────────────────────────────────
-
-export default function RcaTracePanel({
-  hops,
-  isRunning = false,
-  currentPhase,
-  thoughts = [],
-  phases = {},
-}: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll when new hops arrive while running
-  useEffect(() => {
-    if (isRunning) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [hops.length, isRunning]);
-
-  // Determine completed phases in order
-  const completedPhases = (PHASE_ORDER as readonly PhaseId[]).filter((p) => !!phases[p]);
-
-  // Compute next phase
-  const phaseList = PHASE_ORDER as readonly PhaseId[];
-  const curIdx    = currentPhase ? phaseList.indexOf(currentPhase) : -1;
-  const nextPhase = isRunning && curIdx >= 0 && curIdx < phaseList.length - 1
-    ? phaseList[curIdx + 1]
-    : null;
-
-  const isEmpty = hops.length === 0 && completedPhases.length === 0 && !isRunning;
-
-  return (
-    <>
-      <style>{TRACE_CSS}</style>
-
-      <div style={S.container}>
-        {/* Header */}
-        <div style={S.header}>
-          <span style={S.title}>RCA Trace — Causal Backtracking</span>
-          {hops.length > 0 && (
-            <span style={{ color: "#334155", fontSize: 11 }}>
-              {hops.length} hop{hops.length !== 1 ? "s" : ""} traced
-            </span>
-          )}
+          ))}
         </div>
+      )}
 
-        <div style={S.body}>
-          {/* ── Idle / empty state ─────────────────────────────── */}
-          {isEmpty && (
-            <div style={S.empty}>
-              Select a scenario and run RCA Analysis to start tracing
-            </div>
-          )}
-
-          {/* ── Live agent banner (while running) ──────────────── */}
-          {isRunning && currentPhase && (
-            <LiveAgentBanner
-              currentPhase={currentPhase}
-              thoughts={thoughts}
-            />
-          )}
-
-          {/* ── Phase timeline ─────────────────────────────────── */}
-          {completedPhases.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ color: "#1e293b", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>
-                Phase Log
+      {/* Audit trace */}
+      {result.audit_trace?.length > 0 && (
+        <details className="group">
+          <summary className="text-[10px] font-bold tracking-widest uppercase
+                              text-slate-500 cursor-pointer hover:text-slate-300">
+            Audit Trace ({result.audit_trace.length} entries) ▸
+          </summary>
+          <div className="mt-2 space-y-1 pl-2 border-l"
+               style={{ borderColor: 'var(--border-dim)' }}>
+            {result.audit_trace.map((entry, i) => (
+              <div key={i} className="text-[10px] text-slate-500 font-mono">
+                <span className="text-slate-600">{entry.ts}</span>{' '}
+                <span className="text-blue-400">[{entry.agent}]</span>{' '}
+                {entry.action}: {entry.detail}
               </div>
-              {completedPhases.map((phase) => (
-                <PhaseTimelineRow
-                  key={phase}
-                  phase={phase}
-                  result={phases[phase]!}
-                  hopCount={
-                    phase === "BACKTRACK"
-                      ? hops.length
-                      : 0
-                  }
-                />
-              ))}
-            </div>
-          )}
+            ))}
+          </div>
+        </details>
+      )}
 
-          {/* ── Hop chain ──────────────────────────────────────── */}
-          <HopChain hops={hops} />
-
-          {/* ── Next step indicator ────────────────────────────── */}
-          {isRunning && nextPhase && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: "8px 12px",
-                background: "#0a0f1a",
-                border: "1px dashed #1e3a5f",
-                borderRadius: 6,
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-              }}
-            >
-              <span style={{ color: "#1e3a8a", fontSize: 12 }}>→</span>
-              <span style={{ color: "#1e3a8a", fontSize: 11 }}>
-                Next: <strong style={{ color: "#3b82f6" }}>{PHASE_LABELS[nextPhase] ?? nextPhase}</strong>
-                {" — "}{NEXT_DESCRIPTION[currentPhase ?? ""] ?? "continuing investigation"}
-              </span>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
+      {/* Confidence summary */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-600">composite confidence:</span>
+        <span className={`text-xs font-bold font-mono ${
+          pct >= 90 ? 'text-green-400' :
+          pct >= 70 ? 'text-blue-400' :
+          pct >= 40 ? 'text-yellow-400' : 'text-red-400'
+        }`}>{pct}%</span>
+        {result.confidence?.tier && (
+          <span className="text-[10px] text-slate-600">({result.confidence.tier})</span>
+        )}
       </div>
-    </>
+    </div>
   );
 }

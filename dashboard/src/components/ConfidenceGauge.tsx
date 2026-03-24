@@ -1,179 +1,70 @@
-/**
- * ConfidenceGauge.tsx
- *
- * Displays the E×T×D×H confidence breakdown.
- * Accepts a pre-computed ConfidenceBreakdown from useInvestigation — no local state.
- */
+﻿import React from 'react';
+import type { ConfidenceBreakdown } from '../types';
 
-import React from "react";
-import type { ConfidenceBreakdown } from "../types/causelink";
+interface Props { confidence: ConfidenceBreakdown | null; }
 
-interface Props {
-  confidence: ConfidenceBreakdown | null;
-}
-
-const DIMENSION_LABELS: Array<{
-  key: "evidenceScore" | "temporalScore" | "depthScore" | "hypothesisScore";
-  label: string;
-  color: string;
-}> = [
-  { key: "evidenceScore",   label: "Evidence (E)",     color: "#3b82f6" },
-  { key: "temporalScore",   label: "Temporal (T)",     color: "#8b5cf6" },
-  { key: "depthScore",      label: "Depth (D)",        color: "#06b6d4" },
-  { key: "hypothesisScore", label: "Hypothesis (H)", color: "#10b981" },
-];
-
-function pct(v: number): string {
-  return `${Math.round(v * 100)}%`;
-}
-
-function scoreColor(score: number): string {
-  if (score >= 0.8) return "#4ade80";
-  if (score >= 0.6) return "#fbbf24";
-  return "#f87171";
-}
-
-const styles = {
-  container: {
-    background: "#111318",
-    border: "1px solid #1f2937",
-    borderRadius: 8,
-    padding: "18px 20px",
-  },
-  title: {
-    color: "#e2e8f0",
-    fontSize: 13,
-    fontWeight: 600,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase" as const,
-    marginBottom: 16,
-  },
-  compositeRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    background: "#0f1117",
-    border: "1px solid #1f2937",
-    borderRadius: 6,
-    padding: "10px 14px",
-    marginBottom: 16,
-  },
-  compositeLabel: {
-    color: "#64748b",
-    fontSize: 11,
-    fontWeight: 600,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.07em",
-  },
-  compositeValue: (score: number) => ({
-    fontSize: 24,
-    fontWeight: 800,
-    fontFamily: "'JetBrains Mono', monospace",
-    color: scoreColor(score),
-  }),
-  statusBadge: (score: number) => ({
-    background: scoreColor(score) + "22",
-    color: scoreColor(score),
-    borderRadius: 4,
-    padding: "2px 10px",
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "0.05em",
-  }),
-  dimRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  dimLabel: {
-    color: "#94a3b8",
-    fontSize: 11,
-    width: 130,
-    flexShrink: 0,
-  },
-  barTrack: {
-    flex: 1,
-    height: 6,
-    background: "#1f2937",
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  barFill: (score: number, color: string) => ({
-    height: "100%",
-    width: pct(score),
-    background: color,
-    borderRadius: 3,
-    transition: "width 0.5s ease",
-  }),
-  dimScore: (color: string) => ({
-    color,
-    fontSize: 12,
-    fontWeight: 700,
-    fontFamily: "'JetBrains Mono', monospace",
-    width: 36,
-    textAlign: "right" as const,
-  }),
-  formula: {
-    color: "#374151",
-    fontSize: 10,
-    fontFamily: "'JetBrains Mono', monospace",
-    textAlign: "center" as const,
-    marginTop: 10,
-  },
-  empty: {
-    color: "#4b5563",
-    fontSize: 13,
-    textAlign: "center" as const,
-    padding: "20px 0",
-  },
+const TIER_COLOR: Record<string, string> = {
+  CONFIRMED: '#22c55e',
+  HIGH:      '#3b82f6',
+  MEDIUM:    '#eab308',
+  LOW:       '#ef4444',
 };
 
-export default function ConfidenceGauge({ confidence }: Props) {
-  if (!confidence) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.title}>Confidence — E×T×D×H</div>
-        <div style={styles.empty}>Awaiting confidence calculation…</div>
-      </div>
-    );
-  }
-
-  const composite = confidence.composite_score ?? 0;
-  const statusLabel = composite >= 0.80 ? "CONFIRMED" : composite >= 0.50 ? "PROBABLE" : "POSSIBLE";
+export function ConfidenceGauge({ confidence }: Props) {
+  if (!confidence) return null;
+  const pct   = Math.round(confidence.composite * 100);
+  const color = TIER_COLOR[confidence.tier] ?? '#3b82f6';
+  const r = 28;
+  const c = 2 * Math.PI * r;
+  const dash = (confidence.composite * c).toFixed(1);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.title}>Confidence — E×T×D×H</div>
+    <div className="flex items-center gap-4 px-4 py-3 rounded-lg border"
+         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-dim)' }}>
+      {/* Arc gauge */}
+      <svg width="68" height="68" viewBox="0 0 68 68" className="flex-shrink-0">
+        <circle cx="34" cy="34" r={r} fill="none"
+                stroke="var(--border-dim)" strokeWidth="5" />
+        <circle cx="34" cy="34" r={r} fill="none"
+                stroke={color} strokeWidth="5"
+                strokeDasharray={`${dash} ${c}`}
+                strokeLinecap="round"
+                transform="rotate(-90 34 34)"
+                style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+        <text x="34" y="38" textAnchor="middle"
+              style={{ fill: color, fontSize: '14px', fontWeight: 700,
+                       fontFamily: 'monospace' }}>
+          {pct}%
+        </text>
+      </svg>
 
-      <div style={styles.compositeRow}>
-        <div>
-          <div style={styles.compositeLabel}>Composite Score</div>
-          <div style={styles.compositeValue(composite)}>{composite.toFixed(4)}</div>
+      {/* Breakdown bars */}
+      <div className="flex-1 space-y-1.5">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-slate-300">Confidence</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ color, background: `${color}18` }}>
+            {confidence.tier}
+          </span>
         </div>
-        <span style={styles.statusBadge(composite)}>{statusLabel}</span>
-      </div>
-
-      {DIMENSION_LABELS.map(({ key, label, color }) => {
-        const val = (confidence[key] ?? confidence[
-          key === "evidenceScore"   ? "evidence_score" :
-          key === "temporalScore"   ? "temporal_score" :
-          key === "depthScore"      ? "depth_score" :
-          "hypothesis_alignment_score"
-        ] ?? 0) as number;
-        return (
-          <div key={key} style={styles.dimRow}>
-            <span style={styles.dimLabel}>{label}</span>
-            <div style={styles.barTrack}>
-              <div style={styles.barFill(val, color)} />
+        {(['E', 'T', 'D', 'H'] as const).map(k => {
+          const labels: Record<string, string> = {
+            E: 'Evidence', T: 'Topology', D: 'Defect Spec', H: 'Historical',
+          };
+          const val = confidence[k] ?? 0;
+          return (
+            <div key={k} className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 w-20">{labels[k]}</span>
+              <div className="flex-1 h-1.5 rounded-full bg-slate-800">
+                <div className="h-full rounded-full transition-all"
+                     style={{ width: `${val * 100}%`, background: color, opacity: 0.7 }} />
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 w-8 text-right">
+                {(val * 100).toFixed(0)}%
+              </span>
             </div>
-            <span style={styles.dimScore(color)}>{pct(val)}</span>
-          </div>
-        );
-      })}
-
-      <div style={styles.formula}>
-        composite = E×0.40 + T×0.25 + D×0.20 + H×0.15
+          );
+        })}
       </div>
     </div>
   );

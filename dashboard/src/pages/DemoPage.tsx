@@ -25,11 +25,11 @@ import PhasePipeline     from "../components/PhasePipeline";
 import TabPanel          from "../components/TabPanel";
 import type { TabId }    from "../components/TabPanel";
 import ScenarioSelector  from "../components/ScenarioSelector";
-import ControlScanPanel  from "../components/ControlScanPanel";
-import RcaTracePanel     from "../components/RcaTracePanel";
+import { ControlScanPanel }  from "../components/ControlScanPanel";
+import { RcaTracePanel }     from "../components/RcaTracePanel";
 import IncidentCard      from "../components/IncidentCard";
 import RecommendationList from "../components/RecommendationList";
-import ConfidenceGauge   from "../components/ConfidenceGauge";
+import { ConfidenceGauge }   from "../components/ConfidenceGauge";
 import SampleDataTable   from "../components/SampleDataTable";
 import ObservabilityPanel from "../components/ObservabilityPanel";
 import { ReasoningStream }    from "../components/ReasoningStream";
@@ -272,16 +272,12 @@ export default function DemoPage() {
           >
             {/* trace */}
             <div style={{ padding: 16 }}>
-              <RcaTracePanel hops={invState?.backtrackChain ?? []} />
+              <RcaTracePanel result={null} />
             </div>
 
             {/* controls */}
             <div style={{ padding: 16 }}>
-              <ControlScanPanel
-                result={controlResult}
-                loading={controlLoading}
-                error={controlError}
-              />
+              <ControlScanPanel controls={[]} loading={controlLoading} />
             </div>
 
             {/* incident */}
@@ -296,7 +292,7 @@ export default function DemoPage() {
 
             {/* confidence */}
             <div style={{ padding: 16 }}>
-              <ConfidenceGauge confidence={invState?.confidence ?? null} />
+              <ConfidenceGauge confidence={null} />
             </div>
 
             {/* data */}

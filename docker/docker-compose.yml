@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      target: backend
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./src:/app/src
+      - ./skills:/app/skills
+      - ./CLAUDE.md:/app/CLAUDE.md
+      - ./data:/app/data
+    environment:
+      - PYTHONPATH=/app/src
+      - SKILLS_PATH=/app/skills
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build:
+      context: .
+      target: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional Neo4j for production (skip for demo mode)
+  neo4j:
+    image: neo4j:5.18-community
+    profiles: ["production"]
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/kratosgraph
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j-data:/data
+    restart: unless-stopped
+
+volumes:
+  neo4j-data:

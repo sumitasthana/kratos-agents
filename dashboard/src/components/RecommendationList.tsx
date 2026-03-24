@@ -93,7 +93,7 @@ export default function RecommendationList({ recommendations }: Props) {
         const defectId = rec.defectId ?? rec.defect_id;
         const regulation = rec.regulatoryBasis ?? rec.regulation;
         // `effort` from backend is a verbose string like "LOW — single-line JCL change"
-        const effortRaw = (rec as Record<string, unknown>)["effort"] as string | undefined;
+        const effortRaw = (rec as unknown as Record<string, unknown>)["effort"] as string | undefined;
         const effortShort = effortRaw?.split("—")[0].trim();
         const confidence = rec.confidence;
 
