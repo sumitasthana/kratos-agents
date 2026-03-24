@@ -198,13 +198,22 @@ class AgentResult(BaseModel):
         default_factory=list,
         description="Structured evidence objects produced during analysis",
     )
-    recommendations: List[str]            = Field(
+    # Deferred import avoids circular dependency — IssueProfile lives in core.models
+    issue_profiles:  List[Any]            = Field(
         default_factory=list,
-        description="Prioritized recommendation strings for remediation",
+        description="Triangulated IssueProfile objects (type: core.models.IssueProfile)",
+    )
+    recommendations: List[Any]            = Field(
+        default_factory=list,
+        description="Recommendation objects or strings from RecommendationAgent",
     )
     next_phase:      Optional[str]        = Field(
         None,
         description="Suggested next pipeline phase, e.g. 'triangulation'",
+    )
+    metadata:        Dict[str, Any]       = Field(
+        default_factory=dict,
+        description="Agent-specific structured output (tool selections, validation results, etc.)",
     )
 
 

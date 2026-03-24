@@ -57,31 +57,65 @@ from core.base_agent import AgentType, AgentResponse
 from core.llm import LLMConfig
 from workflow.context_layer import AgentContext, SharedFinding
 
-# Schemas still live in src/ until migrated
-from src.schemas import (
-    AgentFinding,
-    AgentTask,
-    AnalysisResult,
-    AnomalyEvent,
-    CrossAgentCorrelation,
-    IssueProfile,
-    OntologyUpdate,
-    ProblemType,
-    RecommendationReport,
-    RoutingDecision,
-    Severity,
-    Fix,
-    ExecutionFingerprint,
-    ChangeFingerprint,
-    CodeFingerprint,
-    DataFingerprint,
-)
+# ---------------------------------------------------------------------------
+# Legacy schema stubs — src/ has been removed; define minimal placeholders
+# so that the rest of this file remains importable during the migration.
+# ---------------------------------------------------------------------------
+try:
+    from src.schemas import (  # type: ignore[import]
+        AgentFinding, AgentTask, AnalysisResult, AnomalyEvent,
+        CrossAgentCorrelation, IssueProfile, OntologyUpdate, ProblemType,
+        RecommendationReport, RoutingDecision, Severity, Fix,
+        ExecutionFingerprint, ChangeFingerprint, CodeFingerprint, DataFingerprint,
+    )
+except ModuleNotFoundError:
+    # Minimal stand-ins so attribute access and isinstance checks don't crash.
+    from dataclasses import dataclass
+    from enum import Enum
+    from typing import Any
 
-# Agent implementations still in src/agents/ until migrated
-from src.agents import QueryUnderstandingAgent, RootCauseAgent
-from src.agents.airflow_log_analyzer import AirflowLogAnalyzerAgent
-from src.agents.change_analyzer_agent import ChangeAnalyzerAgent
-from src.agents.infra_analyzer_agent import InfraAnalyzerAgent
+    @dataclass
+    class _Stub:
+        """Generic stub for removed src.schemas types."""
+        def __init__(self, **kw: Any) -> None:
+            self.__dict__.update(kw)
+
+    AgentFinding = AgentTask = AnalysisResult = AnomalyEvent = _Stub
+    CrossAgentCorrelation = IssueProfile = OntologyUpdate = _Stub
+    RecommendationReport = RoutingDecision = Fix = _Stub
+    ExecutionFingerprint = ChangeFingerprint = CodeFingerprint = DataFingerprint = _Stub
+
+    class ProblemType(str, Enum):
+        UNKNOWN = "unknown"
+        PERFORMANCE = "performance"
+        DATA_QUALITY = "data_quality"
+        LINEAGE = "lineage"
+
+    class Severity(str, Enum):
+        LOW = "low"
+        MEDIUM = "medium"
+        HIGH = "high"
+        CRITICAL = "critical"
+
+# ---------------------------------------------------------------------------
+# Legacy agent stubs — src/agents/ removed; provide no-op stubs.
+# ---------------------------------------------------------------------------
+try:
+    from src.agents import QueryUnderstandingAgent, RootCauseAgent  # type: ignore[import]
+    from src.agents.airflow_log_analyzer import AirflowLogAnalyzerAgent  # type: ignore[import]
+    from src.agents.change_analyzer_agent import ChangeAnalyzerAgent  # type: ignore[import]
+    from src.agents.infra_analyzer_agent import InfraAnalyzerAgent  # type: ignore[import]
+except ModuleNotFoundError:
+    class QueryUnderstandingAgent:  # type: ignore[no-redef]
+        pass
+    class RootCauseAgent:  # type: ignore[no-redef]
+        pass
+    class AirflowLogAnalyzerAgent:  # type: ignore[no-redef]
+        pass
+    class ChangeAnalyzerAgent:  # type: ignore[no-redef]
+        pass
+    class InfraAnalyzerAgent:  # type: ignore[no-redef]
+        pass
 
 logger = logging.getLogger(__name__)
 

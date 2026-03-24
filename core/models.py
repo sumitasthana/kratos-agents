@@ -224,3 +224,34 @@ class Recommendation(BaseModel):
     defect_id:        str      = Field(..., description="Defect identifier, e.g. DEF-042")
     regulation_ref:   str      = Field(..., description="Regulation reference, e.g. '12 CFR Part 370 §2(c)'")
     rationale:        str      = Field(..., description="Why this fix addresses the root cause")
+
+
+# ============================================================================
+# AUDIT EVENT
+# ============================================================================
+
+class AuditEvent(BaseModel):
+    """
+    Structured audit trail entry emitted after each pipeline phase.
+
+    Provides an append-only record of what the orchestrator did, suitable
+    for regulatory audit logs (12 CFR Part 370 §4(b)).
+    """
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique AuditEvent identifier",
+    )
+    phase: str = Field(..., description="Pipeline phase name, e.g. 'route'")
+    agent_name: Optional[str] = Field(None, description="Agent that ran this phase, if any")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="UTC timestamp when the phase completed",
+    )
+    outcome: str = Field(
+        ...,
+        description="Phase outcome: 'success' | 'failure' | 'skipped' | 'looped'",
+    )
+    duration_seconds: float = Field(0.0, description="Wall-clock seconds the phase took")
+    message: str = Field("", description="Human-readable summary of what happened")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary phase metadata")
