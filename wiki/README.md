@@ -2,7 +2,7 @@
 
 This directory contains the complete wiki documentation for the Kratos project.
 
-## 📚 Wiki Pages
+## [DOCS] Wiki Pages
 
 ### Getting Started
 - **Home.md** - Main wiki landing page with overview and navigation
@@ -28,7 +28,7 @@ This directory contains the complete wiki documentation for the Kratos project.
 ### Navigation
 - **_Sidebar.md** - Wiki sidebar navigation menu
 
-## 🚀 Deploying the Wiki
+## [LAUNCH] Deploying the Wiki
 
 ### Option 1: Automated Deployment (Recommended)
 
@@ -78,7 +78,7 @@ For individual page updates:
 3. Copy content from the corresponding .md file
 4. Save the page
 
-## 📝 Wiki Structure
+## [NOTE] Wiki Structure
 
 ```
 wiki/
@@ -106,7 +106,7 @@ wiki/
 └── [Additional pages as needed]
 ```
 
-## ✨ Features
+## [NEW] Features
 
 ### Comprehensive Coverage
 - **7+ core documentation pages**
@@ -131,7 +131,7 @@ wiki/
 - Structured tables and lists
 - ASCII diagrams
 
-## 🔄 Updating the Wiki
+## [SYNC] Updating the Wiki
 
 ### Adding a New Page
 
@@ -173,26 +173,26 @@ wiki/
 2. Run the deployment script
 3. Changes will be pushed to GitHub wiki
 
-## 📦 What's Included
+##  What's Included
 
 ### Documentation Quality
-- ✅ Production-ready content
-- ✅ Tested on multiple platforms
-- ✅ Beginner to advanced coverage
-- ✅ Real-world examples
-- ✅ Comprehensive troubleshooting
+- [PASS] Production-ready content
+- [PASS] Tested on multiple platforms
+- [PASS] Beginner to advanced coverage
+- [PASS] Real-world examples
+- [PASS] Comprehensive troubleshooting
 
 ### Topics Covered
-- ✅ Installation and setup
-- ✅ Quick start tutorials
-- ✅ All three core features
-- ✅ Dashboard usage
-- ✅ AI agent system
-- ✅ API reference
-- ✅ Troubleshooting
-- ✅ FAQ (40+ questions)
+- [PASS] Installation and setup
+- [PASS] Quick start tutorials
+- [PASS] All three core features
+- [PASS] Dashboard usage
+- [PASS] AI agent system
+- [PASS] API reference
+- [PASS] Troubleshooting
+- [PASS] FAQ (40+ questions)
 
-## 🎯 Wiki Goals
+## [TARGET] Wiki Goals
 
 1. **Accessibility** - Easy for beginners to get started
 2. **Completeness** - Cover all features comprehensively
@@ -200,7 +200,7 @@ wiki/
 4. **Maintainability** - Easy to update and extend
 5. **Visual** - Use formatting to enhance readability
 
-## 🤝 Contributing to Wiki
+##  Contributing to Wiki
 
 To contribute improvements:
 
@@ -210,7 +210,7 @@ To contribute improvements:
 4. Submit pull request
 5. Wiki will be deployed after merge
 
-## 📋 Checklist
+## [DOC] Checklist
 
 Before deploying, ensure:
 
@@ -221,14 +221,14 @@ Before deploying, ensure:
 - [ ] Cross-references are accurate
 - [ ] Sidebar navigation is complete
 
-## 🔗 Related Resources
+## [LINK] Related Resources
 
 - **Main README**: `/README.md` in repository root
 - **API Docs**: `/API_REFERENCE.md`
 - **Architecture**: `/ARCHITECTURE.md`
 - **Quick Start**: `/QUICKSTART.md`
 
-## 📊 Wiki Statistics
+## [CHART] Wiki Statistics
 
 - **Total Pages**: 8+ documentation pages
 - **Word Count**: ~30,000 words
@@ -236,18 +236,18 @@ Before deploying, ensure:
 - **Coverage**: All major features
 - **Last Updated**: February 2026
 
-## 🚦 Status
+##  Status
 
-- ✅ Core documentation complete
-- ✅ Installation guides for all platforms
-- ✅ Comprehensive troubleshooting
-- ✅ FAQ with 40+ answers
-- ✅ Automated deployment script
-- ✅ Navigation sidebar
+- [PASS] Core documentation complete
+- [PASS] Installation guides for all platforms
+- [PASS] Comprehensive troubleshooting
+- [PASS] FAQ with 40+ answers
+- [PASS] Automated deployment script
+- [PASS] Navigation sidebar
 - ⏳ Screenshot assets (optional)
 - ⏳ Video tutorials (planned)
 
-## 📞 Support
+##  Support
 
 For wiki-related questions:
 - Open an issue on GitHub
@@ -258,4 +258,4 @@ For wiki-related questions:
 
 **Version**: 1.0.0  
 **Last Updated**: February 2026  
-**Status**: ✅ Production Ready
+**Status**: [PASS] Production Ready

@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 
 from src.agents.base import BaseAgent, AgentResponse, AgentType
+from prompt_loader import load_prompt_content
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,8 @@ class LineageExtractionAgent(BaseAgent):
     
     @property
     def system_prompt(self) -> str:
-        return """You are a data lineage extraction specialist. You analyze Spark ETL scripts
-to identify table and column-level data dependencies, transformations, and data flows."""
+        # Loaded from prompts/lineage_extraction.yaml
+        return load_prompt_content("lineage_extraction")
     
     def plan(
         self,

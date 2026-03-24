@@ -30,6 +30,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+# Makes `src/` importable as a plain namespace so tests can do
+#   from orchestrator import ...   (same style as production code uses internally)
+pythonpath = ["src"]
 
 [tool.black]
 line-length = 100

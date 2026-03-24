@@ -1,0 +1,23 @@
+{
+  "incident_id": "INC-001",
+  "title": "FDIC Coverage Overstated — Depositor Aggregation Skipped",
+  "description": "Daily Insurance batch for 2026-03-16 computed per-account coverage without performing depositor-level aggregation. 1,951 of 6,006 accounts with balances exceeding the SMDIA ($250,000) were reported without aggregating across depositors. Total AUM processed: $1,320,961,508.99. Coverage gap affects Joint_JTWROS, IRAs, and Business ORC holders.",
+  "severity": "CRITICAL",
+  "anchor_type": "Incident",
+  "anchor_id": "INC-001",
+  "control_id": "C2",
+  "control_name": "Coverage Calculation Accuracy",
+  "regulation": "12 CFR § 330.1(b)",
+  "defect_id": "DEF-LDS-001",
+  "defect_artifact": "operational_systems/legacy_deposit_system/batch/DAILY-INSURANCE-JOB.jcl",
+  "defect_description": "Step 3 AGGRSTEP is commented out in JCL — depositor-level aggregation is entirely disabled",
+  "reported_at": "2026-03-16T06:00:00Z",
+  "status": "OPEN",
+  "impact": {
+    "accounts_affected": 1951,
+    "total_accounts": 6006,
+    "pct_affected": 32.5,
+    "smdia_threshold": 250000,
+    "total_aum": 1320961508.99
+  }
+}

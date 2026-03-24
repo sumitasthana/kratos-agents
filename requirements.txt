@@ -1,16 +1,59 @@
+# requirements.txt
+# Core AI/ML dependencies
 pydantic>=2.0
+
+# Neo4j driver (required for CauseLink ontology adapter — Phase A)
+# Requires Neo4j 5.0+ (uses elementId() API)
+neo4j>=5.0
 pandas>=2.0
 pyspark>=3.3
 pyyaml>=6.0
+
+# HTTP API
+fastapi>=0.111
+uvicorn[standard]>=0.29
+
+# Testing
 pytest>=7.0
 pytest-cov>=4.0
 pytest-asyncio>=0.23
+
+# Environment
 python-dotenv>=1.0
+
+# Git analysis
 pydriller
+gitpython>=3.1.0
+
+# LangChain ecosystem
 langchain>=0.3
+langchain-core>=0.3  # ADD THIS LINE - it's required
 langchain-openai>=0.2
 langchain-anthropic>=0.2
 langgraph>=0.2
+
+# LLM providers
+openai>=1.12.0
+anthropic>=0.18.0
+
+# CLI
+click>=8.1.0
+
+# Observability — OpenTelemetry, Prometheus, async HTTP client
+opentelemetry-api>=1.23.0
+opentelemetry-sdk>=1.23.0
+opentelemetry-exporter-otlp-proto-grpc>=1.23.0
+opentelemetry-instrumentation-fastapi>=0.44b0
+prometheus-client>=0.20.0
+httpx>=0.27.0
+rich>=13.0.0
+typer>=0.9.0
+
+# OpenLineage support
+openlineage-python>=1.0.0
+
+# SQL parsing
+sqlparse>=0.4.0
 
 # Lineage extraction from ETL scripts
 git+https://github.com/Byte-Farmer/lineage-map.git@main

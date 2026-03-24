@@ -30,11 +30,11 @@ def print_step(step_num, message):
 
 def print_success(message):
     """Print a success message"""
-    print(f"{Colors.GREEN}✓ {message}{Colors.NC}")
+    print(f"{Colors.GREEN}[OK] {message}{Colors.NC}")
 
 def print_error(message):
     """Print an error message"""
-    print(f"{Colors.RED}✗ {message}{Colors.NC}")
+    print(f"{Colors.RED}[FAIL] {message}{Colors.NC}")
 
 def run_command(cmd, cwd=None, check=True):
     """Run a shell command and return result"""

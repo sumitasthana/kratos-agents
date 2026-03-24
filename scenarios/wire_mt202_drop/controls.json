@@ -1,0 +1,41 @@
+[
+  {
+    "control_id": "B1",
+    "name": "Daily Balance Snapshot",
+    "regulation": "12 CFR § 370.4(a)(1)",
+    "description": "The wire transfer system must process all incoming SWIFT messages (MT103, MT202, MT202COV) and post all settled transactions to the General Ledger within the business day. Any message type not processed must trigger an alert — never silently discarded.",
+    "status": "FAILED",
+    "failure_reason": "swift_parser.py:parse_message() only handles MT103. MT202 and MT202COV fall through without processing or error. 59 messages were silently dropped during 2026-03-16 nightly batch.",
+    "defect_id": "DEF-WTS-001",
+    "artifact": "operational_systems/wire_transfer_system/python/swift_parser.py",
+    "severity": "CRITICAL",
+    "last_tested": "2026-03-15T00:00:00Z",
+    "next_due": "2026-03-16T00:00:00Z"
+  },
+  {
+    "control_id": "B2",
+    "name": "OFAC Screening Timeliness",
+    "regulation": "31 CFR § 560",
+    "description": "All wire transfers must be screened against OFAC SDN list before settlement. Batch mode screening must complete within 2 hours.",
+    "status": "WARNING",
+    "failure_reason": "OFAC batch mode configured with 6-hour delay (DEF-WTS-002). Wires are posted before screening completes.",
+    "defect_id": "DEF-WTS-002",
+    "artifact": "operational_systems/wire_transfer_system/config/wire-config.properties",
+    "severity": "HIGH",
+    "last_tested": "2026-03-16T21:00:00Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  },
+  {
+    "control_id": "B3",
+    "name": "GL Reconciliation",
+    "regulation": "12 CFR § 370.4(a)(2)",
+    "description": "Nostro accounts must be reconciled against GL balances daily. Any break above $1,000 must be reported.",
+    "status": "FAILED",
+    "failure_reason": "GL break of $284,700,000 detected due to MT202/MT202COV messages not posted. DEF-WTS-007: nostro reconciliation in reconciliation.py does not match all nostro accounts.",
+    "defect_id": "DEF-WTS-007",
+    "artifact": "operational_systems/wire_transfer_system/python/reconciliation.py",
+    "severity": "CRITICAL",
+    "last_tested": "2026-03-16T22:00:00Z",
+    "next_due": "2026-03-17T00:00:00Z"
+  }
+]

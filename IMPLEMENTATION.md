@@ -1,6 +1,6 @@
 # Implementation Summary: Spark Execution Fingerprint v3
 
-## ✅ Completed Implementation
+## [PASS] Completed Implementation
 
 A complete, production-ready Python system for:
 1. **Deriving deterministic, multi-layered Execution Fingerprints** from Spark system artifacts
@@ -69,10 +69,10 @@ A complete, production-ready Python system for:
 - Description: Natural language summary
 
 **Properties**:
-- ✅ Deterministic: identical semantics → identical hash
-- ✅ Robust: cosmetic differences don't affect hash
-- ✅ Hashable: single `semantic_hash` for quick equality checks
-- ✅ Traceable: evidence linking to source events
+- [PASS] Deterministic: identical semantics → identical hash
+- [PASS] Robust: cosmetic differences don't affect hash
+- [PASS] Hashable: single `semantic_hash` for quick equality checks
+- [PASS] Traceable: evidence linking to source events
 
 **Use**: Detect identical executions, understand computation structure, plan comparison
 
@@ -87,10 +87,10 @@ A complete, production-ready Python system for:
 - Submission metadata (app ID, user, queue, timestamp)
 
 **Properties**:
-- ✅ Comprehensive: captures all relevant environment factors
-- ✅ Explainable: each setting justified with reasoning
-- ✅ Comparable: enables environment drift detection
-- ✅ Evidentiary: linked to actual events in log
+- [PASS] Comprehensive: captures all relevant environment factors
+- [PASS] Explainable: each setting justified with reasoning
+- [PASS] Comparable: enables environment drift detection
+- [PASS] Evidentiary: linked to actual events in log
 
 **Use**: Explain performance differences, detect environment drift, validate configuration
 
@@ -105,10 +105,10 @@ A complete, production-ready Python system for:
 - Description: natural language performance summary
 
 **Properties**:
-- ✅ Comprehensive: task-level to application-level metrics
-- ✅ Anomaly-aware: automatic detection and flagging
-- ✅ Interpretable: percentiles and outliers included
-- ✅ Comparative: enables regression detection
+- [PASS] Comprehensive: task-level to application-level metrics
+- [PASS] Anomaly-aware: automatic detection and flagging
+- [PASS] Interpretable: percentiles and outliers included
+- [PASS] Comparative: enables regression detection
 
 **Use**: Regression detection, bottleneck analysis, anomaly investigation, performance comparison
 
@@ -199,47 +199,47 @@ class AgentResponse(BaseModel):
 
 ## Key Features
 
-### ✅ Complete Fingerprinting
+### [PASS] Complete Fingerprinting
 - All three fingerprint layers fully implemented
 - JSON event log parser with indexing and error handling
 - DAG extraction with topological sorting
 - Physical plan normalization for SQL
 - Comprehensive metrics aggregation with anomaly detection
 
-### ✅ AI-Powered Analysis
+### [PASS] AI-Powered Analysis
 - LangChain/LangGraph agent framework
 - Query Understanding Agent: explains execution in natural language
 - Root Cause Agent: identifies performance issue causes
 - Extensible architecture for custom agents
 - LLM configuration flexibility (provider, model, temperature)
 
-### ✅ LLM Optimization
+### [PASS] LLM Optimization
 - Hierarchical output structure for progressive disclosure
 - Natural language descriptions at every level
 - Analysis hints directing LLM focus to anomalies/regressions
 - Multiple output formats: JSON (APIs), Markdown (LLMs), YAML (alternative)
 - Evidence linking for fact verification
 
-### ✅ Deterministic & Comparable
+### [PASS] Deterministic & Comparable
 - Semantic hashes are identical for identical DAGs (across runs, clusters, times)
 - Context layer enables version/config compatibility checking
 - Metrics layer supports similarity scoring with configurable thresholds
 - Comparison utility for regression detection
 
-### ✅ Artifact-Based (No Developer Logging Required)
+### [PASS] Artifact-Based (No Developer Logging Required)
 - Parses only Spark system artifacts (JSON event logs)
 - No reliance on developer-added instrumentation
 - Secondary support for driver/executor logs (optional)
 - Fully self-contained analysis from event log alone
 
-### ✅ Production Ready
+### [PASS] Production Ready
 - Error handling: corrupted logs, missing events, incomplete data
 - Type validation: Pydantic models for all data structures
 - Evidence linking: every fact traceable to source events
 - Execution classification: auto-detect CPU/IO/memory/network bound
 - Analysis hints: pre-computed anomaly flags
 
-### ✅ Extensible Architecture
+### [PASS] Extensible Architecture
 - Modular layers: each generator independent
 - Plugin-friendly: add new metrics, anomalies, or output formats
 - Configurable detail levels: summary, balanced, detailed
@@ -362,7 +362,7 @@ for stage in fp.semantic.dag.stages:
     print(f"Stage {stage.stage_id}: {stage.num_partitions} partitions")
 
 for anomaly in fp.metrics.anomalies:
-    print(f"⚠️ {anomaly.anomaly_type}: {anomaly.description}")
+    print(f"[WARN] {anomaly.anomaly_type}: {anomaly.description}")
 ```
 
 ### Command Line
@@ -587,9 +587,9 @@ Development:
 ## Next Steps
 
 ### Immediate
-1. ✅ **Test with real Spark logs**: Replace sample logs with actual event logs
-2. ✅ **Enable agents**: Set OpenAI API key and run demo.py
-3. ✅ **Validate output**: Compare fingerprints and agent insights with manual analysis
+1. [PASS] **Test with real Spark logs**: Replace sample logs with actual event logs
+2. [PASS] **Enable agents**: Set OpenAI API key and run demo.py
+3. [PASS] **Validate output**: Compare fingerprints and agent insights with manual analysis
 
 ### Short Term
 - Build fingerprint comparison service (API)
@@ -615,31 +615,31 @@ Development:
 ## Technical Highlights
 
 ### Fingerprint Design Excellence
-- ✅ Three-layer separation of concerns (semantic/context/metrics)
-- ✅ Deterministic hashing for reproducibility
-- ✅ Evidence linking for full traceability
-- ✅ LLM-optimized output formats
+- [PASS] Three-layer separation of concerns (semantic/context/metrics)
+- [PASS] Deterministic hashing for reproducibility
+- [PASS] Evidence linking for full traceability
+- [PASS] LLM-optimized output formats
 
 ### Agent Framework Design
-- ✅ Async/await patterns with LangChain/LangGraph
-- ✅ Standardized response format across all agents
-- ✅ LLM provider flexibility (OpenAI, Anthropic, etc.)
-- ✅ Graceful fallback for unavailable LLMs
-- ✅ Extensible for custom agent development
+- [PASS] Async/await patterns with LangChain/LangGraph
+- [PASS] Standardized response format across all agents
+- [PASS] LLM provider flexibility (OpenAI, Anthropic, etc.)
+- [PASS] Graceful fallback for unavailable LLMs
+- [PASS] Extensible for custom agent development
 
 ### Code Quality
-- ✅ Type hints throughout (Python 3.9+)
-- ✅ Pydantic validation for all data structures
-- ✅ Comprehensive error handling
-- ✅ Modular, testable architecture
-- ✅ ~5000 lines well-organized code
-- ✅ Complete documentation with examples
+- [PASS] Type hints throughout (Python 3.9+)
+- [PASS] Pydantic validation for all data structures
+- [PASS] Comprehensive error handling
+- [PASS] Modular, testable architecture
+- [PASS] ~5000 lines well-organized code
+- [PASS] Complete documentation with examples
 
 ### Artifact-Driven
-- ✅ Uses only Spark system artifacts
-- ✅ No developer instrumentation required
-- ✅ Works with any Spark deployment
-- ✅ Reproducible across environments
+- [PASS] Uses only Spark system artifacts
+- [PASS] No developer instrumentation required
+- [PASS] Works with any Spark deployment
+- [PASS] Reproducible across environments
 
 ---
 

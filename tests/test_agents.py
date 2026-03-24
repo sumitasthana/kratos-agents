@@ -116,8 +116,8 @@ class TestLLMConfig:
     def test_default_config(self):
         config = LLMConfig()
         assert config.provider == "openai"
-        assert config.model == "gpt-4o"
-        assert config.temperature == 0.3
+        assert config.model == "gpt-4.1"
+        assert config.temperature == 0.2
     
     def test_custom_config(self):
         config = LLMConfig(

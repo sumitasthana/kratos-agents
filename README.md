@@ -1,3 +1,37 @@
+Here’s a cleaned‑up, updated README you can drop in as `README.md` (replace the GitHub URL if needed).
+
+***
+
+# Kratos Agents
+
+## Multi-Agent Root Cause Analysis for Modern Data Platforms
+
+> Intelligent, multi‑agent RCA system for Spark, Airflow, data quality, code changes, and infrastructure — with a production‑ready React dashboard.
+
+***
+
+## [LAUNCH] Overview
+
+Kratos is a **multi‑agent orchestration system** that performs automated root cause analysis (RCA) across distributed data platforms.
+
+It ingests:
+
+- Spark execution logs  
+- Airflow task logs  
+- Dataset snapshots / data quality fingerprints  
+- Git commit history  
+- Infrastructure / observability metrics  
+
+It then:
+
+1. Routes inputs to specialized analyzers.  
+2. Triangulates cross‑domain signals into a unified view.  
+3. Generates structured `IssueProfile` objects.  
+4. Produces prioritized `RecommendationReport` objects.  
+5. Renders results in a React dashboard for human review.
+
+This is not a single-agent LLM wrapper.
+It is a **deterministic orchestration layer coordinating multiple analyzers**.
 # Kratos
 
 **Your AI-powered assistant for understanding Spark jobs, data pipelines, and code dataflow — all in plain English.**
@@ -5,7 +39,7 @@
 [![GitHub Wiki](https://img.shields.io/badge/documentation-wiki-blue)](https://github.com/sumitasthana/kratos-agents/wiki)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 
-📚 **[Complete Documentation Available in Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** - Installation guides, tutorials, examples, troubleshooting, and more!
+[DOCS] **[Complete Documentation Available in Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** - Installation guides, tutorials, examples, troubleshooting, and more!
 
 ---
 
@@ -13,21 +47,21 @@
 
 Kratos is a comprehensive data engineering analysis platform that helps you understand and troubleshoot your data pipelines without needing to be an expert. It provides three main capabilities:
 
-### 1. **Spark Job Analysis** 📊
+### 1. **Spark Job Analysis** [CHART]
 Analyzes Apache Spark event logs to diagnose performance issues, explain query execution, and identify root causes of failures.
 
 **You provide**: A Spark event log file (automatically generated when Spark jobs run)  
 **Kratos creates**: A "fingerprint" — a structured summary of what happened during execution  
 **AI agents analyze**: The fingerprint and explain issues in plain English
 
-### 2. **Git Repository Dataflow Analysis** 🔄
+### 2. **Git Repository Dataflow Analysis** [SYNC]
 Extracts data flow patterns from your git repository's commit history to understand how data moves through your codebase.
 
 **You provide**: A git repository URL or local path  
 **Kratos extracts**: Commit diffs and code changes  
 **AI agents identify**: Data reads, writes, joins, transformations, and dataflow patterns
 
-### 3. **Data Lineage Extraction** 🔗
+### 3. **Data Lineage Extraction** [LINK]
 Analyzes ETL scripts to extract table and column-level data lineage, helping you understand data dependencies.
 
 **You provide**: Spark ETL scripts (.py, .sql)  
@@ -85,354 +119,245 @@ python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm
 # Extract lineage from your ETL scripts
 python -m src.cli lineage-extract --folder ./path/to/etl/scripts
 ```
+# Kratos Agents — Spark Execution Analyzer
+
+> Intelligent multi-agent system for automated Spark job analysis, root cause identification, and actionable performance recommendations.
 
 ---
 
-## How It Works
+## What It Does
 
-### Workflow 1: Spark Job Analysis
+Kratos ingests Spark execution logs, generates an **ExecutionFingerprint**, and routes it through a two-layer agent orchestration pipeline. The result is a structured RCA report surfaced in a React dashboard — with health scoring, severity-ranked findings, and green fix blocks attached directly to each issue.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         YOUR SPARK JOB                              │
-│                              ↓                                      │
-│                      Event Log File                                 │
-│                    (auto-generated)                                 │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                    FINGERPRINT GENERATOR                            │
-│  Creates a structured summary with three layers:                    │
-│                                                                     │
-│  📊 WHAT ran        → Query structure, data flow, transformations   │
-│  ⚙️  HOW it ran      → Spark version, memory settings, cluster size │
-│  📈 HOW WELL it ran → Task times, failures, memory usage, anomalies │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                      AI ANALYSIS AGENTS                             │
-│                                                                     │
-│  🔍 Query Agent     → "This query joins sales data with customers   │
-│                        and aggregates by region..."                 │
-│                                                                     │
-│  🔧 Root Cause Agent → "The job is slow because 8GB of data spilled │
-│                         to disk. Increase executor memory to fix."  │
-└─────────────────────────────────────────────────────────────────────┘
-```
+***
 
-### Workflow 2: Git Repository Dataflow Analysis
+## [AI] What Kratos Analyzes
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      YOUR GIT REPOSITORY                            │
-│                              ↓                                      │
-│                    Commit History + Diffs                           │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                    GIT LOG EXTRACTOR                                │
-│  Extracts code changes and analyzes patterns                        │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                  GIT DATAFLOW AGENT                                 │
-│                                                                     │
-│  Identifies:                                                        │
-│  • Data sources (reads from tables, files, APIs)                    │
-│  • Data sinks (writes to tables, files, APIs)                       │
-│  • Joins and transformations                                        │
-│  • Process flows and data domains                                   │
-└─────────────────────────────────────────────────────────────────────┘
+| Domain | Input               | Agent(s)                                   | Output                               |
+|--------|---------------------|--------------------------------------------|--------------------------------------|
+| Spark  | Event logs          | RootCauseAgent + QueryUnderstandingAgent  | `ExecutionFingerprint` + RCA         |
+| Airflow| Task logs           | AirflowLogAnalyzerAgent                    | Task health & workload summary       |
+| Data   | Dataset snapshot / DQ logs | DataProfilerAgent (stub today)      | Null spikes, schema drift (planned)  |
+| Code   | Git history         | ChangeAnalyzerAgent                        | Churn risk, contributor silo         |
+| Infra  | Cluster metrics     | InfraAnalyzerAgent                         | Resource pressure / memory pressure  |
+
+Each agent emits an `AgentResponse`, which the orchestrators convert into an `AnalysisResult` for triangulation.
+
+***
+
+## [BUILD] Architecture
+
+```text
+KratosOrchestrator
+    │
+    ▼
+RoutingAgent
+    │
+    ├── SparkOrchestrator
+    ├── AirflowLogAnalyzerOrchestrator
+    ├── CodeAnalyzerOrchestrator
+    ├── DataProfilerOrchestrator
+    ├── ChangeAnalyzerOrchestrator
+    └── InfraAnalyzerOrchestrator
+           │
+           ▼
+    TriangulationAgent
+           │
+           ▼
+    RecommendationAgent
+           │
+           ▼
+    RecommendationReport
+           │
+           ▼
+    React Dashboard (Demo RCA / RCA Findings)
 ```
 
-### Workflow 3: Data Lineage Extraction
+Each analyzer produces an `AnalysisResult`.
 
+The **TriangulationAgent** merges results into a unified `IssueProfile` with:
+
+- `dominant_problem_type`  
+- `overall_health_score`  
+- `overall_confidence`  
+- Per‑domain analyses: `log_analysis`, `code_analysis`, `data_analysis`, `change_analysis`, `infra_analysis`  
+- `correlations` (cross‑agent patterns)  
+- `agents_invoked`, `total_findings_count`, `critical_findings_count`
+
+The **RecommendationAgent** turns the `IssueProfile` into a `RecommendationReport` with:
+
+- `executive_summary` (health, analyzers, fixes, signal)  
+- `prioritized_fixes` (Fix objects with effort/priority)  
+- `ontology_update` (learned patterns / control refs)  
+- `feedback_loop_signal` (`ESCALATE`, `RERUN`, `RESOLVED`, `MONITOR`)
+
+***
+
+## [CHART] Dashboard
+![Demo RCA – Real Logs](screenshots/Logs_Dashboard.png)
+![Demo RCA – Agent Graph](screenshots/Visual_agent_graph.png)
+![Demo RCA – Recommendation](screenshots/Recommendation.png)
+The Vite + React dashboard provides:
+
+- **Demo RCA – Real Fixture Logs** page  
+  - Select Spark / Airflow / Data / Infra / Change signals.  
+  - Run RCA via `POST /api/run_rca_from_logs`.  
+  - Visualize overall health, per‑analyzer cards, and prioritized fixes.  
+- **Run viewer** (optional)  
+  - Historical runs sidebar (if wired to a runs backend).  
+- Visuals:
+  - Overall health score and dominant problem type.  
+  - Analyzer status strip (Spark / Airflow / Data / Infra / Change).  
+  - Expandable findings per analyzer.  
+  - Cross‑agent correlations.  
+  - Executive summary and confidence.  
+  - Prioritized fixes with effort/priority badges.
+
+The backend is UI‑agnostic; the dashboard consumes pure JSON (`RecommendationReport`).
+
+***
+
+##  Problem Types
+
+Kratos uses standardized problem types across agents:
+
+| Type               | Description                                      |
+|--------------------|--------------------------------------------------|
+| HEALTHY            | No anomalies detected                            |
+| EXECUTION_FAILURE  | Spark task failures dominate                     |
+| MEMORY_PRESSURE    | Spill / OOM / high memory usage                  |
+| SHUFFLE_OVERHEAD   | Excessive shuffle traffic                        |
+| DATA_SKEW          | Skew penalties dominate                          |
+| NULL_SPIKE         | Data profiler detects null ratio spike           |
+| SCHEMA_DRIFT       | Column or type drift                             |
+| CHURN_SPIKE        | Large change window in Git history               |
+| CONTRIBUTOR_SILO   | Single‑author dominance on critical paths        |
+| REGRESSION_RISK    | Risky change preceding failure                   |
+| CORRELATED_FAILURE | Multi‑agent pattern detected                     |
+| GENERAL            | No single dominant issue                         |
+
+Infra‑specific conditions (e.g., resource pressure) are expressed via `infra_analysis.problem_type` plus correlations.
+
+***
+
+##  Confidence Scoring (Spark Path)
+
+Confidence for Spark RCA is derived from four components:
+
+| Signal             | Max Points |
+|--------------------|-----------:|
+| Data completeness  | 30         |
+| Signal dominance   | 30         |
+| Agent agreement    | 20         |
+| Cause clarity      | 20         |
+
+- Confidence is normalized to \[0.0, 1.0\], with a floor at **0.40**.  
+- No hardcoded confidence constants; it is computed from the fingerprint and agent responses.
+
+***
+
+## [LINK] Cross‑Agent Correlation
+
+The triangulation layer detects patterns such as:
+
+- Churn spike + Spark execution failure.  
+- Compliance gap + null spike in the same dataset.  
+- Infra memory pressure + Spark execution failure / memory pressure.  
+- Schema drift + downstream ETL regression.
+
+These become `CrossAgentCorrelation` objects with:
+
+- Pattern description.  
+- Severity.  
+- Contributing agents.  
+- Confidence.  
+- Optional affected artifacts.
+
+These correlations also feed into the recommendation layer to create cross‑domain fixes.
+
+***
+
+## [DIR] Project Structure
+
+```text
+kratos-agents/
+├── src/
+│   ├── orchestrator.py          # KratosOrchestrator, SparkOrchestrator, routing, triangulation, recommendation
+│   ├── schemas.py               # Pydantic models (fingerprints, IssueProfile, RecommendationReport…)
+│   ├── agent_coordination.py    # AgentContext, SharedFinding
+│   ├── agents/
+│   │   ├── base.py              # BaseAgent, AgentType
+│   │   ├── root_cause.py        # Spark RCA
+│   │   ├── query_understanding.py
+│   │   ├── airflow_log_analyzer.py
+│   │   ├── data_profiler_agent.py   # Stub for now
+│   │   ├── change_analyzer_agent.py
+│   │   └── infra_analyzer_agent.py
+│   ├── cli.py                   # CLI entry points
+│   ├── context_generator.py     # Builds LLM context from fingerprints
+│   └── semantic_generator.py    # DAG semantic layer
+│
+├── dashboard/
+│   ├── src/
+│   │   ├── App.tsx              # App shell / routing
+│   │   ├── RCAFindings.tsx      # Main RCA findings view
+│   │   └── DemoRCA.tsx          # Demo RCA – Real Fixture Logs
+│   ├── server.js                # Static server + local proxy
+│   ├── vite.config.ts           # Dev proxy to FastAPI
+│   └── package.json
+│
+├── logs/                        # Raw + processed logs (gitignored)
+├── tests/                       # Smoke + API tests
+├── screenshots/                 # Dashboard screenshots
+├── requirements.txt
+└── README.md
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      ETL SCRIPTS (.py, .sql)                        │
-└─────────────────────────────────────────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                  LINEAGE EXTRACTION AGENT                           │
-│                                                                     │
-│  Analyzes scripts to extract:                                       │
-│  • Table-level dependencies                                         │
-│  • Column-level lineage                                             │
-│  • Transformation logic                                             │
-│  • Upstream/downstream flows                                        │
-└─────────────────────────────────────────────────────────────────────┘
-```
 
-### All Results →
+***
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     ACTIONABLE INSIGHTS                             │
-│                                                                     │
-│  ✅ Plain English explanations                                      │
-│  ✅ Root cause identification                                       │
-│  ✅ Specific recommendations                                        │
-│  ✅ Prioritized action items                                        │
-│  ✅ Interactive dashboard visualization                             │
-└─────────────────────────────────────────────────────────────────────┘
-```
+## [CONFIG] Setup
 
-💡 **Tip**: Use the **Dashboard** (see below) to interactively explore results with graphs and visualizations!
-
----
-
-## Dashboard - Visual Explorer for Results
-
-The **Dashboard** is a local web UI that lets you visualize and explore agent outputs interactively. It provides:
-
-- **Run History**: Browse all past analyses with timestamps and highlights
-- **RCA Findings**: View root cause analysis results with confidence scores and recommendations
-- **Lineage Graphs**: Interactive table and column-level lineage visualization
-- **Git Dataflow**: Graph visualization showing code dataflow patterns from git history
-
-### Quick Start
+### Backend
 
 ```bash
-# Navigate to dashboard folder
-cd dashboard/
+git clone https://github.com/sumitasthana/kratos-agents.git
+cd kratos-agents
 
-# Install dependencies (first time only)
+python -m venv venv
+# Mac/Linux
+source venv/bin/activate
+# Windows
+venv\Scripts\activate
+
+pip install -r requirements.txt
+```
+
+Start the RCA API (from the `src/` directory if that’s where `rca_api.py` lives):
+
+```bash
+cd src
+uvicorn rca_api:app --reload   # http://127.0.0.1:8000
+```
+
+### Dashboard
+
+```bash
+cd dashboard
 npm install
 
-# Build the dashboard
+npm run dev      # http://127.0.0.1:5173 (via Vite proxy to FastAPI)
+# or production build:
 npm run build
-
-# Start the server
-npm run server
+npm start        # e.g. http://localhost:4173
 ```
 
-Then visit **http://localhost:4173** in your browser.
+The dashboard proxies `/api/*` requests to the FastAPI backend.
 
-The dashboard automatically:
-- Shows your latest analysis run
-- Selects the appropriate visualization tab based on the command type (RCA, Git Dataflow, or Lineage)
-- Lets you browse and compare historical runs
+***
 
-### Development Mode
+## ▶ Running Kratos
 
-```bash
-cd dashboard/
-npm run dev  # Runs on port 5173 with hot reload
-```
-
----
-
-## Core Capabilities
-
-Kratos provides three main analysis capabilities, each designed for different data engineering tasks:
-
-### 1. 🔍 Spark Job Analysis
-
-Analyze Apache Spark event logs to understand performance, diagnose issues, and explain query execution.
-
-**Smart Orchestrator (Recommended):**
-```bash
-# Ask questions in plain English - automatically routes to the right agents
-python -m src.cli orchestrate --from-log your_event_log.json --query "Why is my job failing?"
-python -m src.cli orchestrate --from-log your_event_log.json --query "Explain what this query does"
-python -m src.cli orchestrate --from-log your_event_log.json --query "What are the performance bottlenecks?"
-```
-
-**Direct Fingerprint Generation:**
-```bash
-# Generate a fingerprint only (for advanced use cases)
-python -m src.cli fingerprint your_event_log.json
-```
-
-### 2. 🔄 Git Repository Dataflow Analysis
-
-Extract dataflow patterns (reads, writes, joins, transformations) from git repository commit history.
-
-```bash
-# Clone a repository
-python -m src.cli git-clone https://github.com/Byte-Farmer/kratos-v1.git --dest kratos-v1
-
-# Extract git artifacts (commits + diffs)
-python -m src.cli git-log ./runs/cloned_repos/kratos-v1
-
-# Analyze dataflow patterns with AI
-python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm
-
-# Optional: include documentation files (README.md, etc.) in analysis
-python -m src.cli git-dataflow --latest --dir ./runs/git_artifacts --llm --include-docs
-```
-
-### 3. 🔗 Data Lineage Extraction
-
-Extract table and column-level data lineage from Spark ETL scripts using AI.
-
-```bash
-# Extract lineage from a single script
-python -m src.cli lineage-extract --scripts etl_pipeline.py
-
-# Extract lineage from ALL scripts in a folder
-python -m src.cli lineage-extract --folder ./scripts/multi
-
-# Trace column dependencies (upstream or downstream)
-python -m src.cli lineage-extract --folder ./scripts/multi \
-  --trace-table customers \
-  --trace-column customer_id \
-  --trace-direction upstream
-```
-
-**Output:** Lineage artifacts are saved to `runs/lineage/lineage_*.json`
-
-**Note:** During `orchestrate`, `git-dataflow`, and `lineage-extract` commands, the tool prints each agent's planned steps to the console before execution.
-
----
-
-## What Can Kratos Help You With?
-
-### Spark Job Issues
-
-| Problem | What You'll See | What It Means |
-|---------|-----------------|---------------|
-| **Memory Pressure** | "8GB spilled to disk" | Not enough memory for your data |
-| **Data Skew** | "Partition 32x larger than median" | Uneven data distribution causing slow tasks |
-| **Task Failures** | "23 tasks failed, 45 retries" | Something crashed during execution |
-| **Shuffle Overhead** | "7.4GB shuffle volume" | Too much data moving between machines |
-| **Slow Stages** | "Stage 4 took 15 minutes" | Bottleneck in your pipeline |
-
-### Git Dataflow Insights
-
-| Analysis | What It Identifies | Use Case |
-|----------|-------------------|----------|
-| **Data Sources** | Tables, files, APIs being read | Understand data dependencies |
-| **Data Sinks** | Where data is written | Track data outputs |
-| **Transformations** | Joins, filters, aggregations | Document business logic |
-| **Process Flows** | Complete data pipeline flow | Architecture documentation |
-
-### Data Lineage Capabilities
-
-| Feature | What It Provides | Use Case |
-|---------|-----------------|----------|
-| **Table Dependencies** | Which tables depend on others | Impact analysis for changes |
-| **Column Lineage** | Column-level data flow | Compliance and data governance |
-| **Upstream Tracing** | Where data originates | Root cause analysis |
-| **Downstream Tracing** | What depends on this data | Change impact assessment |
-
----
-
-## Sample Output
-
-```
-═══════════════════════════════════════════════════════════════════════
-  ANALYSIS RESULT [PERFORMANCE]
-═══════════════════════════════════════════════════════════════════════
-
-  Query: Why is my Spark job slow?
-  Problem Type: performance
-  Confidence: 85%
-
-───────────────────────────────────────────────────────────────────────
-  EXECUTIVE SUMMARY
-───────────────────────────────────────────────────────────────────────
-
-  The job is experiencing memory pressure causing 8GB of data to spill
-  to disk. This is the primary cause of slow performance. Additionally,
-  6 tasks failed and required retries.
-
-───────────────────────────────────────────────────────────────────────
-  RECOMMENDATIONS
-───────────────────────────────────────────────────────────────────────
-
-  1. Increase executor memory from 1GB to 2GB
-  2. Review data partitioning strategy
-  3. Consider using broadcast joins for small tables
-```
-
----
-
-## Project Structure
-
-```
-├── src/
-│   ├── orchestrator.py      # Smart agent coordination
-│   ├── agent_coordination.py # Agent communication system
-│   ├── fingerprint.py       # Fingerprint generation
-│   ├── parser.py            # Event log parsing
-│   └── agents/
-│       ├── query_understanding.py  # Explains queries
-│       ├── root_cause.py           # Finds problems
-│       ├── git_diff_dataflow.py    # Git diff dataflow analysis
-│       └── lineage_extraction.py   # ETL script lineage extraction
-├── dashboard/               # React-based web UI for visualizing results
-│   ├── src/                 # React components (App.tsx, graphs, etc.)
-│   ├── server.js            # Express backend serving artifacts
-│   ├── package.json         # Node.js dependencies
-│   └── dist/                # Built UI (generated via npm run build)
-├── runs/                    # Generated outputs (ignored by git)
-│   ├── spark_event_logs/    # Example/sample Spark event logs
-│   ├── fingerprints/        # fingerprint_*.json
-│   ├── orchestrator/        # orchestrator_*.json
-│   ├── run_manifests/       # Metadata for each run (used by dashboard)
-│   ├── cloned_repos/        # Local clones for git-log extraction
-│   ├── git_artifacts/       # git_artifacts_*.json (from git-log)
-│   ├── git_dataflow/        # git_dataflow_*.json (from git-dataflow)
-│   └── lineage/             # lineage_*.json (from lineage-extract)
-├── scripts/                 # Place ETL scripts you want lineage-extract to analyze
-│   └── multi/               # Example multi-script folder (analyze via: lineage-extract --folder ./scripts/multi)
-└── requirements.txt         # Python dependencies
-```
-
----
-
-## For Developers
-
-### Architecture Overview
-
-The system uses a **two-layer architecture**:
-
-**Layer 1 - Infrastructure** (unchanged, stable):
-- Event log parsing and indexing
-- Three-layer fingerprint generation (Semantic, Context, Metrics)
-- Individual analysis agents
-
-**Layer 2 - Orchestration** (new, intelligent):
-- Problem classification based on user query
-- Agent selection and sequencing
-- Context sharing between agents
-- Result synthesis
-
-### Extending with Custom Agents
-
-```python
-from src.agents.base import BaseAgent, AgentResponse
-
-class MyCustomAgent(BaseAgent):
-    @property
-    def agent_name(self) -> str:
-        return "My Custom Agent"
-    
-    async def analyze(self, fingerprint_data, context=None, **kwargs):
-        # Your analysis logic here
-        return AgentResponse(...)
-```
-
-### API Usage
-
-```python
-from src.fingerprint import generate_fingerprint
-from src.orchestrator import SmartOrchestrator
-
-# Generate fingerprint
-fingerprint = generate_fingerprint("path/to/event_log.json")
-
-# Create orchestrator and ask questions
-orchestrator = SmartOrchestrator(fingerprint)
-result = await orchestrator.solve_problem("Why is my job slow?")
-
-print(result.executive_summary)
-print(result.recommendations)
-```
-
----
-
+## Spark
 ## Requirements
 
 - Python 3.10+
@@ -444,7 +369,7 @@ print(result.recommendations)
 
 ## Documentation
 
-### 📚 Comprehensive Wiki
+### [DOCS] Comprehensive Wiki
 Visit our **[GitHub Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** for complete documentation:
 
 - **[Home](https://github.com/sumitasthana/kratos-agents/wiki/Home)** - Overview and navigation
@@ -455,7 +380,7 @@ Visit our **[GitHub Wiki](https://github.com/sumitasthana/kratos-agents/wiki)** 
 - **[FAQ](https://github.com/sumitasthana/kratos-agents/wiki/FAQ)** - Frequently asked questions (40+)
 - **[Examples](https://github.com/sumitasthana/kratos-agents/wiki/Examples)** - Real-world use cases
 
-### 📖 Additional Documentation
+### [GUIDE] Additional Documentation
 - [QUICKSTART.md](QUICKSTART.md) - Detailed installation and usage guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical deep dive
 - [API_REFERENCE.md](API_REFERENCE.md) - Complete API documentation
@@ -490,9 +415,86 @@ A: Yes! Use the **Dashboard** web UI to interactively explore results with graph
 A: 
 - **git-dataflow**: Analyzes git commit history to extract dataflow patterns from code changes (great for understanding how data flows evolved)
 - **lineage-extract**: Analyzes current ETL scripts to extract detailed table/column lineage (great for data governance and compliance)
+## Running
 
----
+```bash
+python -m src.cli orchestrate \
+  --log-path logs/raw/spark_events/log.json
+```
 
-## Support
+With a natural‑language question:
 
-Having issues? Check the [troubleshooting guide](QUICKSTART.md#troubleshooting) or open an issue on GitHub.
+```bash
+python -m src.cli orchestrate \
+  --log-path logs/raw/spark_events/log.json \
+  --query "Why is my job slow?"
+```
+
+### Demo RCA – Real Fixture Logs (UI)
+
+1. Start FastAPI (`uvicorn rca_api:app --reload`).  
+2. Start the dashboard (`npm run dev`).  
+3. Open the **Demo RCA – Real Fixture Logs** page.  
+4. Select which signals to include (Spark / Airflow / Data / Infra / Change).  
+5. Enter a question and click **Run RCA**.  
+6. Inspect:
+   - Overall health & dominant problem type.  
+   - Per‑analyzer cards.  
+   - Cross‑agent correlations.  
+   - Prioritized fixes from the RecommendationAgent.
+
+### Programmatic – Python
+
+```python
+from src.orchestrator import KratosOrchestrator
+
+kratos = KratosOrchestrator()
+report = await kratos.run(
+    user_query="Nightly OHLCV pipeline is failing and cluster looks hot.",
+    execution_fingerprint=spark_fp,
+    airflow_fingerprint=airflow_fp,
+    infra_fingerprint=infra_fp,
+    dataset_path="path/to/dq_fingerprint.json",
+    git_log_path="path/to/git_log.json",
+)
+
+print(report.executive_summary)
+for fix in report.prioritized_fixes:
+    print(f"- [{fix.priority}] {fix.title}: {fix.description}")
+```
+
+***
+
+## [MODULE] Design Principles
+
+- Deterministic orchestration over opaque single‑LLM reasoning.  
+- Clear separation of **analysis** (Python agents) and **presentation** (React).  
+- Negation‑aware severity and recommendation extraction.  
+- Two‑phase classification: routing decision vs. health‑derived override.  
+- Explicit contracts via Pydantic schemas.  
+- Pluggable multi‑agent architecture (Spark, Airflow, Data, Code, Infra).
+
+***
+
+## [TOOLS] Contributing
+
+```bash
+git checkout -b arunesh/<feature-name>
+
+# Make focused changes with good tests.
+git commit -m "feat(orchestrator): <short description>"
+git push origin arunesh/<feature-name>
+```
+
+Then open a pull request describing:
+
+- Motivation / context.  
+- Changes to orchestrator or agents.  
+- Any new tests or demo scenarios.
+
+***
+
+## [USERS] Authors
+
+- **@sumitasthana** — Project lead, initial architecture.  
+- **@AruneshDev** — Orchestration engine, multi‑agent RCA, dashboard & demo flow.

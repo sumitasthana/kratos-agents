@@ -8,7 +8,7 @@
 
 ---
 
-## 📚 Quick Navigation
+## [DOCS] Quick Navigation
 
 ### Getting Started
 - **[Installation Guide](Installation-Guide)** - Set up Kratos in 5 minutes
@@ -34,11 +34,11 @@
 
 ---
 
-## 🎯 What is Kratos?
+## [TARGET] What is Kratos?
 
 Kratos is a comprehensive **data engineering analysis platform** that helps you understand and troubleshoot your data pipelines without needing to be an expert. It provides three main capabilities:
 
-### 1. 📊 Spark Job Analysis
+### 1. [CHART] Spark Job Analysis
 Analyzes Apache Spark event logs to diagnose performance issues, explain query execution, and identify root causes of failures.
 
 **Example Questions:**
@@ -47,7 +47,7 @@ Analyzes Apache Spark event logs to diagnose performance issues, explain query e
 - "Why did my job fail?"
 - "Where is the bottleneck in my data pipeline?"
 
-### 2. 🔄 Git Repository Dataflow Analysis
+### 2. [SYNC] Git Repository Dataflow Analysis
 Extracts data flow patterns from your git repository's commit history to understand how data moves through your codebase.
 
 **What It Identifies:**
@@ -56,7 +56,7 @@ Extracts data flow patterns from your git repository's commit history to underst
 - Joins and transformations
 - Process flows and data domains
 
-### 3. 🔗 Data Lineage Extraction
+### 3. [LINK] Data Lineage Extraction
 Analyzes ETL scripts to extract table and column-level data lineage, helping you understand data dependencies.
 
 **Capabilities:**
@@ -67,7 +67,7 @@ Analyzes ETL scripts to extract table and column-level data lineage, helping you
 
 ---
 
-## 🚀 Quick Start
+## [LAUNCH] Quick Start
 
 ### Step 1: Install
 ```bash
@@ -101,7 +101,7 @@ python -m src.cli lineage-extract --folder ./path/to/etl/scripts
 
 ---
 
-## 📖 Key Concepts
+## [GUIDE] Key Concepts
 
 ### The Fingerprint System
 Kratos generates a **three-layer fingerprint** from Spark event logs:
@@ -123,7 +123,7 @@ Automatically routes user questions to the right agents and synthesizes results.
 
 ---
 
-## 🎨 Interactive Dashboard
+##  Interactive Dashboard
 
 Kratos includes a **React-based dashboard** for visual exploration:
 
@@ -144,7 +144,7 @@ Visit **http://localhost:4173** in your browser.
 
 ---
 
-## 📊 Sample Output
+## [CHART] Sample Output
 
 ```
 ═══════════════════════════════════════════════════════════════════════
@@ -174,7 +174,7 @@ Visit **http://localhost:4173** in your browser.
 
 ---
 
-## 🛠️ Use Cases
+## [TOOLS] Use Cases
 
 ### Performance Troubleshooting
 - Identify memory pressure and spill
@@ -199,28 +199,28 @@ Visit **http://localhost:4173** in your browser.
 
 ---
 
-## 📚 Documentation Structure
+## [DOCS] Documentation Structure
 
 This wiki is organized into the following sections:
 
-### 📘 Getting Started
+###  Getting Started
 Introduction, installation, and first steps with Kratos.
 
-### 📗 User Guides
+###  User Guides
 Step-by-step guides for each major feature.
 
-### 📙 Advanced Topics
+###  Advanced Topics
 In-depth coverage of advanced features and customization.
 
-### 📕 Reference
+###  Reference
 Complete API documentation and technical specifications.
 
-### 📓 Help & Support
+###  Help & Support
 Troubleshooting, FAQ, and community resources.
 
 ---
 
-## 🤝 Community & Support
+##  Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/sumitasthana/kratos-agents/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/sumitasthana/kratos-agents/discussions)
@@ -228,13 +228,13 @@ Troubleshooting, FAQ, and community resources.
 
 ---
 
-## 📄 License
+##  License
 
 Kratos is open source software licensed under the MIT License.
 
 ---
 
-## 🔗 External Resources
+## [LINK] External Resources
 
 - [Apache Spark Documentation](https://spark.apache.org/docs/latest/)
 - [OpenAI API Documentation](https://platform.openai.com/docs)
@@ -244,4 +244,4 @@ Kratos is open source software licensed under the MIT License.
 
 **Last Updated**: February 2026  
 **Version**: 3.0.0  
-**Status**: ✅ Production Ready
+**Status**: [PASS] Production Ready

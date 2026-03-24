@@ -169,11 +169,11 @@ DATA FLOW:
    • Approx rows: 36 cohorts × detailed metrics
 
 KEY BUSINESS LOGIC:
-  ✓ 24-month lookback for transaction history
-  ✓ Cohort = month of customer signup
-  ✓ CLV = (Avg monthly revenue × Retention rate × 12)
-  ✓ Includes margin-adjusted profitability
-  ✓ Used for customer segmentation and targeting
+  [PASS] 24-month lookback for transaction history
+  [PASS] Cohort = month of customer signup
+  [PASS] CLV = (Avg monthly revenue × Retention rate × 12)
+  [PASS] Includes margin-adjusted profitability
+  [PASS] Used for customer segmentation and targeting
 ```
 
 ### Outcome
@@ -234,11 +234,11 @@ Dependency Chain:
     └─ Source: External payment system (via Kafka)
 
 AFFECTED TABLES (if raw.payment_events.raw_amount changes):
-  ✗ staging.daily_transactions (2.3M rows daily)
-  ✗ staging.monthly_customer_revenue (450K rows monthly)
-  ✗ analytics.customer_revenue (3.2M rows)
-  ✗ dashboard.revenue_dashboard (aggregated view)
-  ✗ ml_features.revenue_predictions (ML pipeline)
+  [FAIL] staging.daily_transactions (2.3M rows daily)
+  [FAIL] staging.monthly_customer_revenue (450K rows monthly)
+  [FAIL] analytics.customer_revenue (3.2M rows)
+  [FAIL] dashboard.revenue_dashboard (aggregated view)
+  [FAIL] ml_features.revenue_predictions (ML pipeline)
 
 BUSINESS IMPACT:
   - 5 downstream tables affected
@@ -442,7 +442,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## ⚠️ Performance Regression Detected\n\n${analysis.summary}`
+              body: `## [WARN] Performance Regression Detected\n\n${analysis.summary}`
             });
 ```
 

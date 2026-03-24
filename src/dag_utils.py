@@ -122,7 +122,7 @@ class DAGGraph:
         try:
             self.topological_sort()
             return True
-        except:
+        except Exception:  # topological_sort raises ValueError on cycle detection
             return False
 
     def hash_structure(self) -> str:

@@ -1,0 +1,23 @@
+{
+  "incident_id": "INC-003",
+  "title": "MT202 / MT202COV Wire Transfers Silently Dropped — GL Break $284.7M",
+  "description": "WIRE-NIGHTLY-RECON-20260316 detected a General Ledger break of $284,700,000. Root cause: swift_parser.py:parse_message() handles only MT103. MT202 (47 messages) and MT202COV (12 messages) are dropped silently with no exception raised. Affected wires were not posted to the GL, causing nostro account reconciliation failure.",
+  "severity": "CRITICAL",
+  "anchor_type": "Incident",
+  "anchor_id": "INC-003",
+  "control_id": "B1",
+  "control_name": "Daily Balance Snapshot",
+  "regulation": "12 CFR § 370.4(a)(1)",
+  "defect_id": "DEF-WTS-001",
+  "defect_artifact": "operational_systems/wire_transfer_system/python/swift_parser.py",
+  "defect_description": "parse_message() handles MT103 only — no else/raise for MT202/MT202COV",
+  "reported_at": "2026-03-16T22:05:00Z",
+  "status": "OPEN",
+  "impact": {
+    "gl_break_amount": 284700000,
+    "mt202_messages_dropped": 47,
+    "mt202cov_messages_dropped": 12,
+    "total_messages_dropped": 59,
+    "currency": "USD"
+  }
+}

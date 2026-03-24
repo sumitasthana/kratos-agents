@@ -1,14 +1,14 @@
 # PR Summary: Comprehensive Wiki Documentation for Kratos
 
-## 🎯 Objective
+## [TARGET] Objective
 
 Created a detailed, production-ready wiki for the Kratos project to provide comprehensive documentation for users at all skill levels.
 
 ---
 
-## ✅ What Was Delivered
+## [PASS] What Was Delivered
 
-### 📚 Complete Wiki Package
+### [DOCS] Complete Wiki Package
 
 A comprehensive wiki with **9 detailed documentation pages** totaling **~10,700 words** and **124 KB** of content.
 
@@ -69,7 +69,7 @@ A comprehensive wiki with **9 detailed documentation pages** totaling **~10,700 
    - Structure and statistics
    - Update instructions
 
-### 🛠️ Deployment Tools
+### [TOOLS] Deployment Tools
 
 1. **deploy-wiki.sh** (3.8 KB)
    - Automated bash deployment script
@@ -95,7 +95,7 @@ A comprehensive wiki with **9 detailed documentation pages** totaling **~10,700 
    - Deployment status
    - Future enhancements
 
-### 📝 Repository Updates
+### [NOTE] Repository Updates
 
 1. **README.md** - Updated with:
    - Wiki badge and link at top
@@ -104,7 +104,7 @@ A comprehensive wiki with **9 detailed documentation pages** totaling **~10,700 
 
 ---
 
-## 📊 Statistics
+## [CHART] Statistics
 
 ### Content Metrics
 - **Total Pages**: 9 documentation pages
@@ -115,17 +115,17 @@ A comprehensive wiki with **9 detailed documentation pages** totaling **~10,700 
 - **Total Size**: 124 KB
 
 ### Coverage
-- ✅ Installation (all platforms)
-- ✅ Quick start tutorials
-- ✅ Spark job analysis
-- ✅ Troubleshooting
-- ✅ FAQ (comprehensive)
-- ✅ Real-world examples
-- ✅ Deployment tooling
+- [PASS] Installation (all platforms)
+- [PASS] Quick start tutorials
+- [PASS] Spark job analysis
+- [PASS] Troubleshooting
+- [PASS] FAQ (comprehensive)
+- [PASS] Real-world examples
+- [PASS] Deployment tooling
 
 ---
 
-## 🚀 How to Deploy
+## [LAUNCH] How to Deploy
 
 ### Quick Deployment
 
@@ -165,7 +165,7 @@ See **[WIKI_DEPLOYMENT.md](WIKI_DEPLOYMENT.md)** for complete step-by-step instr
 
 ---
 
-## 🎨 Features
+##  Features
 
 ### Comprehensive Coverage
 - **All major features** documented
@@ -193,7 +193,7 @@ See **[WIKI_DEPLOYMENT.md](WIKI_DEPLOYMENT.md)** for complete step-by-step instr
 
 ---
 
-## 📁 File Structure
+## [DIR] File Structure
 
 ```
 kratos-agents/
@@ -217,24 +217,24 @@ kratos-agents/
 
 ---
 
-## ✨ Quality Assurance
+## [NEW] Quality Assurance
 
 ### Verification Completed
-- ✅ All bash/Python scripts syntax checked
-- ✅ Code examples reviewed
-- ✅ Links cross-referenced
-- ✅ Formatting consistent
-- ✅ Platform-specific instructions validated
+- [PASS] All bash/Python scripts syntax checked
+- [PASS] Code examples reviewed
+- [PASS] Links cross-referenced
+- [PASS] Formatting consistent
+- [PASS] Platform-specific instructions validated
 
 ### Testing
-- ✅ Bash script: Syntax valid
-- ✅ Python script: Syntax valid
-- ✅ Markdown: Properly formatted
-- ✅ File structure: Organized
+- [PASS] Bash script: Syntax valid
+- [PASS] Python script: Syntax valid
+- [PASS] Markdown: Properly formatted
+- [PASS] File structure: Organized
 
 ---
 
-## 🎯 Impact
+## [TARGET] Impact
 
 ### User Benefits
 1. **Faster Onboarding**: 5-minute quick start
@@ -252,7 +252,7 @@ kratos-agents/
 
 ---
 
-## 🔄 Next Steps (User Action Required)
+## [SYNC] Next Steps (User Action Required)
 
 1. **Review** wiki content in PR
 2. **Merge** PR to main branch
@@ -263,7 +263,7 @@ kratos-agents/
 
 ---
 
-## 📚 Documentation Links
+## [DOCS] Documentation Links
 
 After deployment, the wiki will be available at:
 - **Wiki Home**: https://github.com/sumitasthana/kratos-agents/wiki
@@ -273,7 +273,7 @@ After deployment, the wiki will be available at:
 
 ---
 
-## 🤝 Maintenance
+##  Maintenance
 
 ### Updating Wiki
 1. Edit markdown files in `wiki/` directory
@@ -289,19 +289,19 @@ After deployment, the wiki will be available at:
 
 ---
 
-## 📝 Summary
+## [NOTE] Summary
 
-✅ **Delivered**: Comprehensive, production-ready wiki with 9 detailed pages  
-✅ **Coverage**: Installation, tutorials, guides, troubleshooting, FAQ, examples  
-✅ **Tools**: Automated deployment scripts (bash and Python)  
-✅ **Documentation**: Complete deployment guide and summary  
-✅ **Ready**: All files committed and ready for deployment  
+[PASS] **Delivered**: Comprehensive, production-ready wiki with 9 detailed pages  
+[PASS] **Coverage**: Installation, tutorials, guides, troubleshooting, FAQ, examples  
+[PASS] **Tools**: Automated deployment scripts (bash and Python)  
+[PASS] **Documentation**: Complete deployment guide and summary  
+[PASS] **Ready**: All files committed and ready for deployment  
 
-**The wiki is production-ready and awaits deployment!** 🚀
+**The wiki is production-ready and awaits deployment!** [LAUNCH]
 
 ---
 
-## 📞 Support
+##  Support
 
 For questions about the wiki:
 - Review **[WIKI_DEPLOYMENT.md](WIKI_DEPLOYMENT.md)**
@@ -312,4 +312,4 @@ For questions about the wiki:
 
 **Created by**: GitHub Copilot Agent  
 **Date**: February 2026  
-**Status**: ✅ Complete and Ready for Deployment
+**Status**: [PASS] Complete and Ready for Deployment

@@ -56,7 +56,7 @@ fi
 # Clone the wiki repository
 echo "Cloning wiki from: $WIKI_URL"
 if git clone "$WIKI_URL" "$TEMP_WIKI_DIR" 2>/dev/null; then
-    echo -e "${GREEN}✓ Wiki repository cloned successfully${NC}"
+    echo -e "${GREEN}[OK] Wiki repository cloned successfully${NC}"
 else
     echo -e "${YELLOW}Wiki repository doesn't exist yet. Creating initial wiki...${NC}"
     echo "Please ensure the wiki is initialized on GitHub first."
@@ -74,7 +74,7 @@ echo -e "${YELLOW}Step 3: Copying wiki content...${NC}"
 
 # Copy all markdown files from wiki source to temp directory
 cp -v "$WIKI_SOURCE"/*.md "$TEMP_WIKI_DIR/"
-echo -e "${GREEN}✓ Wiki files copied${NC}"
+echo -e "${GREEN}[OK] Wiki files copied${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 4: Committing changes...${NC}"
@@ -96,14 +96,14 @@ fi
 # Commit changes
 COMMIT_MESSAGE="Update Kratos wiki - $(date +%Y-%m-%d)"
 git commit -m "$COMMIT_MESSAGE"
-echo -e "${GREEN}✓ Changes committed${NC}"
+echo -e "${GREEN}[OK] Changes committed${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 5: Pushing to GitHub...${NC}"
 
 # Push to GitHub
 if git push origin master; then
-    echo -e "${GREEN}✓ Wiki successfully deployed to GitHub!${NC}"
+    echo -e "${GREEN}[OK] Wiki successfully deployed to GitHub!${NC}"
 else
     echo -e "${RED}Error: Failed to push to GitHub${NC}"
     echo "Please ensure you have write access to the wiki repository."
@@ -118,7 +118,7 @@ cd - > /dev/null
 echo ""
 echo -e "${YELLOW}Step 6: Cleaning up...${NC}"
 rm -rf "$TEMP_WIKI_DIR"
-echo -e "${GREEN}✓ Temporary files cleaned up${NC}"
+echo -e "${GREEN}[OK] Temporary files cleaned up${NC}"
 
 echo ""
 echo "=========================================="
@@ -130,4 +130,4 @@ echo ""
 echo "Pages deployed:"
 ls -1 "$WIKI_SOURCE"/*.md | xargs -n1 basename | sed 's/.md$//' | sed 's/^/  • /'
 echo ""
-echo -e "${GREEN}✓ All done!${NC}"
+echo -e "${GREEN}[OK] All done!${NC}"

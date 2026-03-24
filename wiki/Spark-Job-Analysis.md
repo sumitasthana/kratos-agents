@@ -160,10 +160,10 @@ DATA FLOW:
    • Rows written: ~1,400 (7 days × ~200 country-device combinations)
 
 KEY OPERATIONS:
-  ✓ Hash Join (inner) on user_id
-  ✓ Date filter on indexed column
-  ✓ Two-level aggregation (dedup + groupby)
-  ✓ Partitioned write for query efficiency
+  [PASS] Hash Join (inner) on user_id
+  [PASS] Date filter on indexed column
+  [PASS] Two-level aggregation (dedup + groupby)
+  [PASS] Partitioned write for query efficiency
 ```
 
 ### Scenario 3: Failure Diagnosis
@@ -256,9 +256,9 @@ DETAILED ANALYSIS:
   Shuffle: 8.2GB
   
   Issues:
-  ✗ Right table (250MB) not broadcast (< 1GB threshold)
-  ✗ Join generates 8.2GB shuffle
-  ✗ 450 shuffle partitions (default) not optimal for data size
+  [FAIL] Right table (250MB) not broadcast (< 1GB threshold)
+  [FAIL] Join generates 8.2GB shuffle
+  [FAIL] 450 shuffle partitions (default) not optimal for data size
   
 OPTIMIZATION RECOMMENDATIONS:
 
