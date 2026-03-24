@@ -1,105 +1,81 @@
-﻿@tailwind base;
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Dark theme (default) */
-:root {
-  --bg-root:      #080c14;
-  --bg-sidebar:   #0b0f1c;
-  --bg-card:      #0e1424;
-  --bg-panel:     #0d1221;
-  --bg-code:      #060a12;
-  --border-dim:   #1a2235;
-  --border-active:#3b82f6;
-  --text-primary: #e2e8f0;
-  --text-muted:   #4a5568;
-  --text-dim:     #2d3748;
-  --accent-blue:  #3b82f6;
-  --accent-green: #22c55e;
-  --sev-high:     #f97316;
-  --sev-medium:   #eab308;
-  --sev-critical: #ef4444;
-  --sev-low:      #6b7280;
-  --scrollbar-thumb: #1a2235;
-  --shadow-card:  0 1px 3px rgba(0,0,0,0.6);
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #030712;
+    color: #e2e8f0;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
 }
 
-/* Light theme */
-html.light {
-  --bg-root:      #f0f4fa;
-  --bg-sidebar:   #e6ecf7;
-  --bg-card:      #ffffff;
-  --bg-panel:     #f5f8fd;
-  --bg-code:      #eef2f9;
-  --border-dim:   #cbd5e1;
-  --border-active:#2563eb;
-  --text-primary: #1e293b;
-  --text-muted:   #64748b;
-  --text-dim:     #94a3b8;
-  --accent-blue:  #2563eb;
-  --accent-green: #16a34a;
-  --sev-high:     #ea580c;
-  --sev-medium:   #ca8a04;
-  --sev-critical: #dc2626;
-  --sev-low:      #6b7280;
-  --scrollbar-thumb: #cbd5e1;
-  --shadow-card:  0 1px 3px rgba(0,0,0,0.08);
+@layer utilities {
+  .font-mono-data {
+    font-family: 'IBM Plex Mono', monospace;
+  }
 }
-
-/* Base */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { height: 100%; }
-
-body {
-  height: 100%;
-  background: var(--bg-root);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
-  overflow: auto;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-#root {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.font-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
-
-/* Scrollbar */
-::-webkit-scrollbar       { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-
-/* Light mode overrides for Tailwind bg classes */
-html.light .bg-slate-800 { background-color: #e2e8f0 !important; }
-html.light .bg-slate-900 { background-color: #f1f5f9 !important; }
-html.light .bg-black\/30  { background-color: rgba(0,0,0,0.04) !important; }
-
-/* Light mode text */
-html.light .text-slate-200 { color: #1e293b !important; }
-html.light .text-slate-300 { color: #334155 !important; }
-html.light .text-slate-400 { color: #475569 !important; }
-html.light .text-slate-500 { color: #64748b !important; }
-html.light .text-slate-600 { color: #94a3b8 !important; }
-
-/* Light mode borders */
-html.light .border-slate-700 { border-color: #cbd5e1 !important; }
-
-/* Light mode code */
-html.light pre, html.light code { color: #334155 !important; }
 
 /* Animations */
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+  50% { opacity: 0.3; }
 }
-.pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
 
-@keyframes hop-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
-.hop-enter { animation: hop-in 0.3s ease forwards; }
+
+.animate-fade-slide {
+  animation: fadeSlide 0.2s ease-out forwards;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}

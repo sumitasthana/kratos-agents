@@ -1,321 +1,258 @@
-import { useState, useCallback, useRef } from 'react';
-import type { HopEvent, RcaResult, PhaseStep, HopNode, RemAction, ChatMsg } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { RcaMessage, PhaseId } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8002';
+// ── Mock data ────────────────────────────────────────────────────────────────
 
-const PHASE_AGENTS: Record<string, string> = {
-  INTAKE:        'IntakeAgent',
-  LOGS_FIRST:    'EvidenceAgent',
-  ROUTE:         'RoutingAgent',
-  BACKTRACK:     'BacktrackAgent',
-  INCIDENT_CARD: 'IncidentAgent',
-  RECOMMEND:     'RecommendAgent',
-  PERSIST:       'RankerAgent',
-};
+const MOCK_MESSAGES: RcaMessage[] = [
+  {
+    id: 'm1',
+    type: 'system',
+    phase: 'INTAKE',
+    timestamp: Date.now(),
+    text: 'Incident INC-4491 loaded. 2 of 21 controls failed.',
+  },
+  {
+    id: 'm2',
+    type: 'agent',
+    phase: 'INTAKE',
+    timestamp: Date.now(),
+    agent: 'Orchestrator',
+    text: 'Seeding ontology graph. CTRL-007 failed on nightly_batch run. Regulation: 12 CFR §330.1(b). Starting trace.',
+  },
+  {
+    id: 'm3',
+    type: 'hop',
+    phase: 'INTAKE',
+    timestamp: Date.now(),
+    hops: [
+      { from: 'System:legacy_deposit', edge: 'RUNS_JOB', to: 'Job:nightly_batch' },
+      { from: 'Job:nightly_batch', edge: 'EXECUTES', to: 'Pipeline:deposit_insurance' },
+      { from: 'Pipeline:deposit_insurance', edge: 'GOVERNED_BY', to: 'Regulation:12CFR330' },
+      { from: 'Regulation:12CFR330', edge: 'MANDATES', to: 'ControlObjective:CTRL-007' },
+    ],
+  },
+  {
+    id: 'm4',
+    type: 'agent',
+    phase: 'LOGS_FIRST',
+    timestamp: Date.now(),
+    agent: 'SparkLogTool',
+    tag: 'evidence',
+    text: 'Aggregation stage: 0 records output. Insurance calc consumed raw_deposits directly — 847,231 rows bypassed aggregation.',
+  },
+  {
+    id: 'm5',
+    type: 'agent',
+    phase: 'LOGS_FIRST',
+    timestamp: Date.now(),
+    agent: 'AirflowLogTool',
+    tag: 'evidence',
+    text: "Task 'run_aggregation' SKIPPED — JCL flag check resolved WS-SKIP-AGG=Y. Downstream tasks proceeded without aggregated input.",
+  },
+  {
+    id: 'm6',
+    type: 'agent',
+    phase: 'ROUTE',
+    timestamp: Date.now(),
+    agent: 'RoutingAgent',
+    text: 'Pattern identified: configuration_bypass (confidence 0.92). Dispatching: GitDiffTool, DataProfiler, DDLDiffTool.',
+  },
+  {
+    id: 'm7',
+    type: 'evidence',
+    phase: 'BACKTRACK',
+    timestamp: Date.now(),
+    source: 'GitDiffTool',
+    filename: 'deposit_agg.cbl',
+    language: 'COBOL',
+    defect: 'DEF-AGG-001',
+    code: `000142* AGGREGATION CONTROL FLAG
+000143  05 WS-SKIP-AGG PIC X(1) VALUE 'Y'. *> CHANGED
+000144* Commit: a3f7c2 by ops-automation
+000145* "disable aggregation for performance testing"`,
+  },
+  {
+    id: 'm8',
+    type: 'hop',
+    phase: 'BACKTRACK',
+    timestamp: Date.now(),
+    hops: [
+      { from: 'Pipeline:deposit_insurance', edge: 'USES_SCRIPT', to: 'Script:deposit_agg.cbl' },
+      { from: 'Script:deposit_agg.cbl', edge: 'CHANGED_BY', to: 'CodeEvent:commit_a3f7c2' },
+      { from: 'Script:deposit_agg.cbl', edge: 'TYPICALLY_IMPLEMENTS', to: 'Transformation:deposit_aggregation' },
+      { from: 'Rule:AGG_RULE_001', edge: 'ENFORCED_BY', to: 'Transformation:deposit_aggregation' },
+    ],
+  },
+  {
+    id: 'm9',
+    type: 'agent',
+    phase: 'BACKTRACK',
+    timestamp: Date.now(),
+    agent: 'DataProfiler',
+    tag: 'finding',
+    text: 'aggregated_deposits = 847,231 rows (expected ~312K). 147,892 depositors affected. Estimated excess FDIC coverage: ~$12.3B.',
+  },
+  {
+    id: 'm10',
+    type: 'triangulation',
+    phase: 'INCIDENT_CARD',
+    timestamp: Date.now(),
+    confidence: 0.97,
+    rootCause: 'CodeEvent commit_a3f7c2 set WS-SKIP-AGG=Y in deposit_agg.cbl, disabling deposit aggregation. Insurance calculated on raw deposits — 847K rows vs expected 312K.',
+    regulation: '12 CFR §330.1(b)',
+    defect: 'DEF-AGG-001',
+  },
+  {
+    id: 'm11',
+    type: 'recommendation',
+    phase: 'RECOMMEND',
+    timestamp: Date.now(),
+    items: [
+      {
+        priority: 'P1',
+        action: 'Revert WS-SKIP-AGG=Y to N in deposit_agg.cbl and rerun nightly_batch',
+        owner: 'John Chen',
+        effort: '2 hr',
+        regulation: '§330.1(b)',
+      },
+      {
+        priority: 'P1',
+        action: 'Reprocess 147,892 depositor records and recalculate FDIC coverage',
+        owner: 'Maria Santos',
+        effort: '4 hr',
+        regulation: '§330.1(b)',
+      },
+      {
+        priority: 'P2',
+        action: 'Add pre-production gate blocking JCL changes to controls marked blocking',
+        owner: 'Alex Kim',
+        effort: '2 days',
+      },
+    ],
+  },
+  {
+    id: 'm12',
+    type: 'system',
+    phase: 'PERSIST',
+    timestamp: Date.now(),
+    text: 'RCA complete. 7 phases, 47s elapsed, 15 ontology nodes traversed, 5 evidence objects, 3 recommendations.',
+  },
+];
 
-export function useRcaStream() {
-  // Legacy — kept for backward compat with RcaTracePanel/ConfidenceGauge
-  const [hops,    setHops]    = useState<HopEvent[]>([]);
-  const [result,  setResult]  = useState<RcaResult | null>(null);
-  // New structured state
-  const [phases,     setPhases]     = useState<PhaseStep[]>([]);
-  const [hopNodes,   setHopNodes]   = useState<HopNode[]>([]);
-  const [scenarioId, setScenarioId] = useState<string | null>(null);
-  const [incidentId, setIncidentId] = useState<string | null>(null);
+// ── Hook ────────────────────────────────────────────────────────────────────
 
-  const [tracing, setTracing] = useState(false);
-  const [syncPct, setSyncPct] = useState(100);
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const abortRef     = useRef<AbortController | null>(null);
-  const incidentRef  = useRef<string | null>(null);
-  const scenarioRef  = useRef<string | null>(null);
-  const recsRef      = useRef<RemAction[]>([]);
-  // Refs so ask() can read current result/phases without stale closures
-  const resultRef    = useRef<RcaResult | null>(null);
-  const phasesRef    = useRef<PhaseStep[]>([]);
+interface UseRcaStreamResult {
+  messages: RcaMessage[];
+  isTracing: boolean;
+  currentPhase: PhaseId | null;
+  connect: (incidentId: string) => void;
+  disconnect: () => void;
+}
 
-  const trace = useCallback(async (text: string) => {
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+export function useRcaStream(): UseRcaStreamResult {
+  const [messages, setMessages] = useState<RcaMessage[]>([]);
+  const [isTracing, setIsTracing] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState<PhaseId | null>(null);
 
-    // Reset all state
-    setHops([]);
-    setResult(null);
-    setPhases([]);
-    setHopNodes([]);
-    setScenarioId(null);
-    setIncidentId(null);
-    setChatMessages([]);
-    incidentRef.current  = null;
-    scenarioRef.current  = null;
-    recsRef.current      = [];
-    resultRef.current    = null;
-    phasesRef.current    = [];
-    setTracing(true);
-    setSyncPct(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const mockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mockIndexRef = useRef(0);
+  const incidentIdRef = useRef<string>('');
 
-    try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text }),
-        signal:  abortRef.current.signal,
-      });
-
-      if (!res.body) throw new Error('No stream body');
-      const reader = res.body.getReader();
-      const dec    = new TextDecoder();
-      let   buf    = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-
-        const parts = buf.split('\n\n');
-        buf = parts.pop() ?? '';
-
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith('data:')) continue;
-          const raw = line.slice(5).trim();
-          if (raw === '[DONE]') { setTracing(false); setSyncPct(100); break; }
-
-          try {
-            const evt = JSON.parse(raw) as Record<string, unknown>;
-            const evtType = (evt.type as string) ?? '';
-
-            // ── SKILL_RESOLVED: first event from /api/chat ─────────────
-            if (evtType === 'SKILL_RESOLVED') {
-              const sid = evt.scenario_id as string | null;
-              if (sid) { setScenarioId(sid); scenarioRef.current = sid; }
-              continue;
-            }
-
-            // ── Grab scenario_id from any PhaseEvent field ──────────────
-            if (!scenarioRef.current && evt.scenario_id) {
-              const sid = evt.scenario_id as string;
-              setScenarioId(sid);
-              scenarioRef.current = sid;
-            }
-
-            // ── PHASE_COMPLETE ──────────────────────────────────────────
-            if (evtType === 'PHASE_COMPLETE') {
-              const phase   = (evt.phase as string) ?? '';
-              const details = (evt.details as Record<string, unknown>) ?? {};
-
-              // Extract incident_id from INTAKE phase
-              if (phase === 'INTAKE') {
-                const iid = details.incident_id as string | undefined;
-                if (iid) { setIncidentId(iid); incidentRef.current = iid; }
-              }
-
-              // Build RcaResult from PERSIST phase confidence breakdown
-              if (phase === 'PERSIST') {
-                const bd = (details.confidence_breakdown as Record<string, number>) ?? {};
-                const composite = bd.composite_score ?? 0;
-                const built: RcaResult = {
-                  incident_id:          incidentRef.current ?? '',
-                  root_cause_final:     (details.root_cause_node_id as string) ?? null,
-                  defect_id:            null,
-                  confidence: {
-                    composite,
-                    tier: composite >= 0.70 ? 'CONFIRMED' : composite >= 0.40 ? 'HIGH' : 'MEDIUM',
-                    E: bd.evidence_score            ?? 0,
-                    T: bd.temporal_score            ?? 0,
-                    D: bd.depth_score               ?? 0,
-                    H: bd.hypothesis_alignment_score ?? 0,
-                  },
-                  regulation_citations: [],
-                  remediation:          recsRef.current,
-                  audit_trace:          [],
-                };
-                resultRef.current = built;
-                setResult(built);
-                setSyncPct(100);
-              }
-
-              // Capture recommendations from RECOMMEND phase
-              if (phase === 'RECOMMEND') {
-                const recs = details.recommendations as RemAction[] | undefined;
-                if (recs?.length) recsRef.current = recs;
-              }
-
-              setPhases(prev => {
-                const next = [...prev, {
-                  phase,
-                  phase_number: (evt.phase_number as number) ?? 0,
-                  status:       (evt.status  as string) ?? '',
-                  summary:      (evt.summary as string) ?? '',
-                  agent:        PHASE_AGENTS[phase] ?? 'DemoRcaService',
-                  details,
-                }];
-                phasesRef.current = next;
-                return next;
-              });
-
-              setSyncPct(prev => Math.max(prev, Math.round(
-                (((evt.phase_number as number) ?? 0) / 7) * 80
-              )));
-            }
-
-            // ── HOP_REVEALED — one per causal edge during BACKTRACK ─────
-            if (evtType === 'HOP_REVEALED') {
-              const details = (evt.details as Record<string, unknown>) ?? {};
-              const hopIdx  = (details.hop_index as number) ?? 0;
-              setHopNodes(prev => [...prev, {
-                from_node_id: (details.from_node_id as string) ?? '',
-                to_node_id:   (details.to_node_id   as string) ?? '',
-                rel_type:     (details.rel_type      as string) ?? '',
-                hop_index:    hopIdx,
-                status:       (details.status        as string) ?? 'confirmed',
-              }]);
-              setSyncPct(Math.min(90, 40 + hopIdx * 12));
-            }
-
-            // ── INVESTIGATION_COMPLETE — all 7 phases done ──────────────
-            if (evtType === 'INVESTIGATION_COMPLETE') {
-              setTracing(false);
-              setSyncPct(100);
-            }
-
-            // ── Legacy: hop / result events (pre-demo API) ──────────────
-            if (evtType === 'hop') {
-              setHops(prev => [...prev, evt as unknown as HopEvent]);
-            }
-            if (evtType === 'result') {
-              setResult(evt.data as RcaResult);
-              setTracing(false);
-              setSyncPct(100);
-            }
-
-          } catch { /* malformed SSE — skip */ }
-        }
-      }
-    } catch (err: unknown) {
-      if ((err as Error).name !== 'AbortError') setTracing(false);
+  const clearMockTimer = () => {
+    if (mockTimerRef.current) {
+      clearTimeout(mockTimerRef.current);
+      mockTimerRef.current = null;
     }
-  }, []);
-
-  const abort = useCallback(() => {
-    abortRef.current?.abort();
-    setTracing(false);
-  }, []);
-
-  // ── ask(): follow-up question — does NOT reset RCA state ────────────────
-  const ask = useCallback(async (text: string) => {
-    const userMsg: ChatMsg = { role: 'user', content: text, ts: new Date().toISOString() };
-    setChatMessages(prev => [...prev, userMsg]);
-
-    // Append a placeholder assistant message we'll fill in token-by-token
-    const assistantTs = new Date().toISOString();
-    setChatMessages(prev => [...prev, { role: 'assistant', content: '', ts: assistantTs }]);
-
-    try {
-      const res = await fetch(`${API_BASE}/api/ask`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question:    text,
-          scenario_id: scenarioRef.current ?? undefined,
-          investigation_context: {
-            root_cause_final: resultRef.current?.root_cause_final ?? null,
-            confidence:       resultRef.current?.confidence ?? null,
-            remediation:      resultRef.current?.remediation ?? [],
-            phases: phasesRef.current.map(p => ({
-              phase:   p.phase,
-              status:  p.status,
-              summary: p.summary,
-            })),
-          },
-        }),
-      });
-      if (!res.ok || !res.body) {
-        const errText = res.body
-          ? await res.text().catch(() => `HTTP ${res.status}`)
-          : `HTTP ${res.status}`;
-        setChatMessages(prev => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last?.role === 'assistant') {
-            updated[updated.length - 1] = { ...last, content: `Error: ${errText.slice(0, 200)}` };
-          }
-          return updated;
-        });
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const dec    = new TextDecoder();
-      let   buf    = '';
-
-      outer: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split('\n\n');
-        buf = parts.pop() ?? '';
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith('data:')) continue;
-          const raw = line.slice(5).trim();
-          if (raw === '[DONE]') break outer;
-          try {
-            const evt = JSON.parse(raw) as Record<string, unknown>;
-            if (evt.type === 'TOKEN') {
-              const token = (evt.text as string) ?? '';
-              // Append token to the last (placeholder) assistant message
-              setChatMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    content: last.content + token,
-                  };
-                }
-                return updated;
-              });
-            }
-            if (evt.type === 'DONE' || evt.type === 'ERROR') {
-              if (evt.type === 'ERROR') {
-                setChatMessages(prev => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last?.role === 'assistant' && last.content === '') {
-                    updated[updated.length - 1] = {
-                      ...last,
-                      content: `Error: ${(evt.message as string) ?? 'Server error.'}`,
-                    };
-                  }
-                  return updated;
-                });
-              }
-              break outer;
-            }
-          } catch { /* skip malformed */ }
-        }
-      }
-    } catch (e: unknown) {
-      if ((e as Error).name !== 'AbortError') {
-        setChatMessages(prev => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last?.role === 'assistant' && last.content === '') {
-            updated[updated.length - 1] = {
-              ...last,
-              content: 'Unable to reach the analysis server. Check your connection.',
-            };
-          }
-          return updated;
-        });
-      }
-    }
-  }, []);
-
-  return {
-    hops, result, tracing, syncPct, trace, abort,
-    phases, hopNodes, scenarioId, incidentId,
-    chatMessages, ask,
   };
+
+  const playNextMock = useCallback(() => {
+    const idx = mockIndexRef.current;
+    if (idx >= MOCK_MESSAGES.length) {
+      setIsTracing(false);
+      return;
+    }
+    const msg = { ...MOCK_MESSAGES[idx], id: `${incidentIdRef.current}-${idx}`, timestamp: Date.now() };
+    setMessages(prev => [...prev, msg]);
+    setCurrentPhase(msg.phase);
+    mockIndexRef.current = idx + 1;
+
+    const delay = idx === MOCK_MESSAGES.length - 1 ? 0 : 900;
+    if (delay > 0) {
+      mockTimerRef.current = setTimeout(playNextMock, delay);
+    } else {
+      setIsTracing(false);
+    }
+  }, []);
+
+  const startMockStream = useCallback(() => {
+    mockIndexRef.current = 0;
+    setMessages([]);
+    setIsTracing(true);
+    setCurrentPhase('INTAKE');
+    mockTimerRef.current = setTimeout(playNextMock, 400);
+  }, [playNextMock]);
+
+  const disconnect = useCallback(() => {
+    clearMockTimer();
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setIsTracing(false);
+  }, []);
+
+  const connect = useCallback((incidentId: string) => {
+    disconnect();
+    incidentIdRef.current = incidentId;
+    setMessages([]);
+    setCurrentPhase(null);
+
+    const ws = new WebSocket('ws://localhost:5001/ws');
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setIsTracing(true);
+      ws.send(JSON.stringify({ type: 'start_trace', incident_id: incidentId }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg: RcaMessage = JSON.parse(event.data as string);
+        setMessages(prev => [...prev, msg]);
+        setCurrentPhase(msg.phase);
+      } catch {
+        // ignore malformed
+      }
+    };
+
+    ws.onerror = () => {
+      wsRef.current = null;
+      startMockStream();
+    };
+
+    ws.onclose = (e) => {
+      if (e.code !== 1000) {
+        wsRef.current = null;
+        startMockStream();
+      } else {
+        setIsTracing(false);
+      }
+    };
+
+    // If WS doesn't open within 1.5s, fall back to mock
+    const timeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        ws.close();
+        wsRef.current = null;
+        startMockStream();
+      }
+    }, 1500);
+
+    ws.addEventListener('open', () => clearTimeout(timeout));
+  }, [disconnect, startMockStream]);
+
+  useEffect(() => () => disconnect(), [disconnect]);
+
+  return { messages, isTracing, currentPhase, connect, disconnect };
 }

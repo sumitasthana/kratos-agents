@@ -12,6 +12,17 @@ export default defineConfig({
     // The more-specific path (/api/run_rca_from_logs) is listed first so it
     // wins before the shorter /api/run_rca prefix rule.
     proxy: {
+      // ── Kratos WebSocket relay (port 5001) ──────────────────────────────
+      "/ws": {
+        target: "ws://127.0.0.1:5001",
+        ws: true,
+        changeOrigin: true,
+      },
+      // ── Incidents API (port 8000) ────────────────────────────────────────
+      "/incidents": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
       // ── FastAPI RCA backend (port 8000) ─────────────────────────────────
       // More-specific paths are listed first so they win before shorter prefixes.
       "/api/run_rca_from_logs": {
