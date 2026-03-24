@@ -1,130 +1,105 @@
-/* ============================================================
-   index.css — Kratos RCA  enterprise dark theme
-   Bloomberg / Datadog / PagerDuty reference style
-   ============================================================ */
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* --- Google Fonts pre-connect (fonts loaded in index.html) --- */
-
-/* ── Design tokens ─────────────────────────────────────────── */
+/* Dark theme (default) */
 :root {
-  --bg-base:        #0f1117;
-  --bg-surface:     #111318;
-  --bg-card:        #161b25;
-  --border:         #1f2937;
-  --text-primary:   #e5e7eb;
-  --text-secondary: #9ca3af;
-  --text-muted:     #4b5563;
-  --text-mono:      'JetBrains Mono', 'Fira Mono', monospace;
-  --status-green:   #22c55e;
-  --status-amber:   #f59e0b;
-  --status-red:     #ef4444;
-  --status-blue:    #3b82f6;
-  --status-grey:    #374151;
+  --bg-root:      #080c14;
+  --bg-sidebar:   #0b0f1c;
+  --bg-card:      #0e1424;
+  --bg-panel:     #0d1221;
+  --bg-code:      #060a12;
+  --border-dim:   #1a2235;
+  --border-active:#3b82f6;
+  --text-primary: #e2e8f0;
+  --text-muted:   #4a5568;
+  --text-dim:     #2d3748;
+  --accent-blue:  #3b82f6;
+  --accent-green: #22c55e;
+  --sev-high:     #f97316;
+  --sev-medium:   #eab308;
+  --sev-critical: #ef4444;
+  --sev-low:      #6b7280;
+  --scrollbar-thumb: #1a2235;
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.6);
 }
 
-/* ── Reset + base ──────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
+/* Light theme */
+html.light {
+  --bg-root:      #f0f4fa;
+  --bg-sidebar:   #e6ecf7;
+  --bg-card:      #ffffff;
+  --bg-panel:     #f5f8fd;
+  --bg-code:      #eef2f9;
+  --border-dim:   #cbd5e1;
+  --border-active:#2563eb;
+  --text-primary: #1e293b;
+  --text-muted:   #64748b;
+  --text-dim:     #94a3b8;
+  --accent-blue:  #2563eb;
+  --accent-green: #16a34a;
+  --sev-high:     #ea580c;
+  --sev-medium:   #ca8a04;
+  --sev-critical: #dc2626;
+  --sev-low:      #6b7280;
+  --scrollbar-thumb: #cbd5e1;
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.08);
 }
 
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
+/* Base */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
 
 body {
-  background: var(--bg-base);
+  height: 100%;
+  background: var(--bg-root);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 13px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: auto;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* ── Typography helpers ────────────────────────────────────── */
-.mono {
-  font-family: var(--text-mono);
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.label {
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-family: var(--text-mono);
-}
+.font-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 
-/* ── Divider ───────────────────────────────────────────────── */
-.divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 12px 0;
-}
+/* Scrollbar */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
-/* ── Status color utilities ────────────────────────────────── */
-.status-healthy  { color: var(--status-green); }
-.status-warning  { color: var(--status-amber); }
-.status-critical { color: var(--status-red);   }
-.status-skipped  { color: var(--status-grey);  }
+/* Light mode overrides for Tailwind bg classes */
+html.light .bg-slate-800 { background-color: #e2e8f0 !important; }
+html.light .bg-slate-900 { background-color: #f1f5f9 !important; }
+html.light .bg-black\/30  { background-color: rgba(0,0,0,0.04) !important; }
 
-/* ── Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-base);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+/* Light mode text */
+html.light .text-slate-200 { color: #1e293b !important; }
+html.light .text-slate-300 { color: #334155 !important; }
+html.light .text-slate-400 { color: #475569 !important; }
+html.light .text-slate-500 { color: #64748b !important; }
+html.light .text-slate-600 { color: #94a3b8 !important; }
 
-/* ── Selection ─────────────────────────────────────────────── */
-::selection {
-  background: rgba(59, 130, 246, 0.25);
-  color: var(--text-primary);
-}
+/* Light mode borders */
+html.light .border-slate-700 { border-color: #cbd5e1 !important; }
 
-/* ── Code/pre ──────────────────────────────────────────────── */
-code, pre {
-  font-family: var(--text-mono);
-  font-size: 11px;
-}
+/* Light mode code */
+html.light pre, html.light code { color: #334155 !important; }
 
-/* ── Input / select resets ─────────────────────────────────── */
-input, select, button, textarea {
-  font-family: inherit;
-  color: inherit;
+/* Animations */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
+.pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
 
-input:focus {
-  outline: 1px solid var(--status-blue);
-  outline-offset: 0;
+@keyframes hop-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-/* ── Table ─────────────────────────────────────────────────── */
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-th, td {
-  text-align: left;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
-  font-size: 11px;
-}
-
-th {
-  font-size: 9px;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-family: var(--text-mono);
-  background: var(--bg-base);
-}
+.hop-enter { animation: hop-in 0.3s ease forwards; }

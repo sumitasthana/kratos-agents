@@ -277,7 +277,7 @@ class DemoRcaService:
                 },
                 type="AGENT_THOUGHT",
             ))
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.35)  # stagger thought steps for visual effect
 
     async def _run_agent_phase(
         self,
@@ -574,6 +574,7 @@ class DemoRcaService:
         self, inv_id: str, scenario_id: str, pack: ScenarioPack,
         state: InvestigationState, queue: asyncio.Queue,
     ) -> None:
+        await asyncio.sleep(1.2)  # simulate scenario loading
         state.status = InvestigationStatus.ONTOLOGY_LOADING
         state.append_audit(AuditTraceEntry(
             agent_type="DemoRcaService",
@@ -603,6 +604,7 @@ class DemoRcaService:
         self, inv_id: str, scenario_id: str, pack: ScenarioPack,
         state: InvestigationState, queue: asyncio.Queue,
     ) -> None:
+        await asyncio.sleep(1.8)  # simulate log parsing
         log_signal = _LOG_SIGNALS[scenario_id]
         found = log_signal in pack.log_text
 
@@ -637,6 +639,7 @@ class DemoRcaService:
         state: InvestigationState, queue: asyncio.Queue,
     ) -> str:
         """Build log EvidenceObject, add to state. Returns evidence_id."""
+        await asyncio.sleep(1.5)  # simulate evidence routing
         state.status = InvestigationStatus.EVIDENCE_COLLECTION
 
         log_bytes = pack.log_text.encode("utf-8")
@@ -697,6 +700,7 @@ class DemoRcaService:
         evidence_id: str,
     ) -> str:
         """Build Hypothesis + CausalEdges. Returns hypothesis_id."""
+        await asyncio.sleep(2.0)  # simulate ontology backtracking
         state.status = InvestigationStatus.HYPOTHESIS_GENERATION
 
         canon_graph = state.canon_graph
@@ -850,6 +854,7 @@ class DemoRcaService:
         self, inv_id: str, scenario_id: str, pack: ScenarioPack,
         state: InvestigationState, queue: asyncio.Queue,
     ) -> None:
+        await asyncio.sleep(1.5)  # simulate incident card synthesis
         inc = pack.incident
         defect = self._adapter.primary_defect_for_scenario(scenario_id)
         incident_card = {
@@ -891,6 +896,7 @@ class DemoRcaService:
         state: InvestigationState, queue: asyncio.Queue,
     ) -> List[Dict[str, Any]]:
         """Build remediation recommendations from the agent catalog (structured dicts)."""
+        await asyncio.sleep(1.8)  # simulate recommendation generation
         # Pull structured dicts from the agent's static catalog — these have
         # all the fields the frontend Recommendation interface expects:
         # rank, action, artifact, defect_id, regulation, effort, confidence.
@@ -956,6 +962,7 @@ class DemoRcaService:
         recommendations: list,
     ) -> None:
         """Compute final confidence and set root_cause_final."""
+        await asyncio.sleep(1.5)  # simulate confidence scoring and persistence
         scores = _CONFIDENCE_SCORES[scenario_id]
         breakdown = self._calc.compute_with_breakdown(
             evidence=scores["evidence"],
