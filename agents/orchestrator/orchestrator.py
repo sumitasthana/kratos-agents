@@ -310,7 +310,10 @@ class KratosOrchestrator:
             return {}
         result = fn(incident_id)
         if asyncio.iscoroutine(result):
-            return await result
+            result = await result
+        # If the connector already returned a Pydantic model, convert to dict.
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
         return result or {}
 
     async def _logs_first(

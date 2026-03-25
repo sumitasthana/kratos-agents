@@ -35,6 +35,13 @@ class DiffDataFlow:
 
 
 class GitDiffDataFlowAgent(BaseAgent):
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self.llm_config  = llm_config or LLMConfig()
+        self._name       = "GitDiffDataFlowAgent"
+        self._llm_client = None
+        self._tools      = []
+
     @property
     def agent_type(self) -> AgentType:
         return AgentType.GIT_DIFF_DATAFLOW
@@ -69,6 +76,23 @@ class GitDiffDataFlowAgent(BaseAgent):
             "Merge heuristic + LLM signals into a single dataflow result",
             "Summarize counts and write JSON output",
         ]
+
+    async def invoke(self, context: Any) -> Any:
+        """Satisfy BaseAgent.invoke() by delegating to analyze()."""
+        from core.base_agent import AgentResult
+        from tools.base_tool import agent_response_to_evidence
+        fingerprint_data: Dict[str, Any] = (
+            context.metadata.get("fingerprint_data")
+            or context.metadata.get("git_artifacts")
+            or context.metadata
+        )
+        response = await self.analyze(fingerprint_data=fingerprint_data)
+        evidence = agent_response_to_evidence(response, tool_name="GitDiffTool")
+        return AgentResult(
+            agent_name=self.agent_name,
+            evidence=evidence,
+            metadata=response.metadata,
+        )
 
     async def analyze(
         self,

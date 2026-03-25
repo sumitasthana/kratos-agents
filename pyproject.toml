@@ -33,6 +33,9 @@ python_files = "test_*.py"
 # Makes `src/` importable as a plain namespace so tests can do
 #   from orchestrator import ...   (same style as production code uses internally)
 pythonpath = ["src"]
+markers = [
+    "docker: marks tests that require a running Docker environment (deselect with -m 'not docker')",
+]
 
 [tool.black]
 line-length = 100

@@ -511,6 +511,13 @@ class RootCauseAgent(BaseAgent):
     Mode 2: GRC Compliance RCA when incident_type != SPARK_PERFORMANCE.
     """
 
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self.llm_config  = llm_config or LLMConfig()
+        self._name       = "RootCauseAgent"
+        self._llm_client = None
+        self._tools      = []
+
     @property
     def agent_type(self) -> AgentType:
         return AgentType.ROOT_CAUSE
@@ -562,6 +569,27 @@ class RootCauseAgent(BaseAgent):
         if focus_areas:
             steps.insert(2, f"Apply focus areas: {', '.join(focus_areas)}")
         return steps
+
+    # ------------------------------------------------------------------ #
+    # BaseAgent.invoke() implementation
+    # ------------------------------------------------------------------ #
+
+    async def invoke(self, context: Any) -> Any:
+        """Satisfy BaseAgent.invoke() by delegating to analyze()."""
+        from core.base_agent import AgentResult
+        from tools.base_tool import agent_response_to_evidence
+        fingerprint_data: Dict[str, Any] = (
+            context.metadata.get("fingerprint_data")
+            or context.metadata.get("spark_metrics")
+            or context.metadata
+        )
+        response = await self.analyze(fingerprint_data=fingerprint_data)
+        evidence = agent_response_to_evidence(response, tool_name="SparkLogTool")
+        return AgentResult(
+            agent_name=self.agent_name,
+            evidence=evidence,
+            metadata=response.metadata,
+        )
 
     # ------------------------------------------------------------------ #
     # Mode selection

@@ -22,6 +22,13 @@ class AirflowLogAnalyzerAgent(BaseAgent):
       - Extend to DAG-level aggregation and infra correlation.
     """
 
+    def __init__(self, llm_config=None) -> None:
+        from core.llm import LLMConfig
+        self.llm_config  = llm_config or LLMConfig()
+        self._name       = "AirflowLogAnalyzerAgent"
+        self._llm_client = None
+        self._tools      = []
+
     @property
     def agent_type(self) -> AgentType:
         # You may want to add a dedicated enum later, e.g. PIPELINE_LOG_ANALYZER.
@@ -44,6 +51,27 @@ class AirflowLogAnalyzerAgent(BaseAgent):
     def system_prompt(self) -> str:
         # Not used in MVP (rule-based); keep placeholder for future LLM enhancement.
         return "Airflow log analysis prompt (unused in rule-based mode)."
+
+    # ------------------------------------------------------------------ #
+    # BaseAgent.invoke() implementation
+    # ------------------------------------------------------------------ #
+
+    async def invoke(self, context: Any) -> Any:
+        """Satisfy BaseAgent.invoke() by delegating to analyze()."""
+        from core.base_agent import AgentResult
+        from tools.base_tool import agent_response_to_evidence
+        fingerprint_data: Dict[str, Any] = (
+            context.metadata.get("fingerprint_data")
+            or context.metadata.get("airflow_logs")
+            or context.metadata
+        )
+        response = await self.analyze(fingerprint_data=fingerprint_data)
+        evidence = agent_response_to_evidence(response, tool_name="AirflowLogTool")
+        return AgentResult(
+            agent_name=self.agent_name,
+            evidence=evidence,
+            metadata=response.metadata,
+        )
 
     # ------------------------------------------------------------------ #
     # Public analyse method

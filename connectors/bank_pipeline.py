@@ -229,6 +229,8 @@ class BankPipelineConnector(BaseConnector):
         sse_headers = {"Accept": "text/event-stream", "Cache-Control": "no-cache"}
 
         async with self._http.stream("GET", url, headers=sse_headers) as response:
+            if response.is_error:
+                await response.aread()
             self._raise_for_status(response)
 
             async for line in response.aiter_lines():
