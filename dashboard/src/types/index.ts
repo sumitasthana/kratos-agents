@@ -10,6 +10,8 @@ export interface Incident {
   job: string;
   status: IncidentStatus;
   timestamp?: string;
+  control_id?: string;
+  source_system?: string;
 }
 
 export type MessageType =
@@ -18,7 +20,8 @@ export type MessageType =
   | 'hop'
   | 'evidence'
   | 'triangulation'
-  | 'recommendation';
+  | 'recommendation'
+  | 'user';
 
 export type PhaseId =
   | 'INTAKE'
@@ -88,10 +91,16 @@ export interface RecommendationMessage extends BaseMessage {
   items: RecommendationItem[];
 }
 
+export interface UserMessage extends BaseMessage {
+  type: 'user';
+  text: string;
+}
+
 export type RcaMessage =
   | SystemMessage
   | AgentMessage
   | HopMessage
   | EvidenceMessage
   | TriangulationMessage
-  | RecommendationMessage;
+  | RecommendationMessage
+  | UserMessage;

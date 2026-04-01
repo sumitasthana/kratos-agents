@@ -12,12 +12,9 @@ export default defineConfig({
     // The more-specific path (/api/run_rca_from_logs) is listed first so it
     // wins before the shorter /api/run_rca prefix rule.
     proxy: {
-      // ── Kratos WebSocket relay (port 5001) ──────────────────────────────
-      "/ws": {
-        target: "ws://127.0.0.1:5001",
-        ws: true,
-        changeOrigin: true,
-      },
+      // WebSocket /ws is handled directly by the React hook connecting to
+      // ws://127.0.0.1:8001/ws — no proxy entry needed (avoids conflict with
+      // Vite's own HMR WebSocket on the dev-server port).
       // ── Incidents API (port 8000) ────────────────────────────────────────
       "/incidents": {
         target: "http://127.0.0.1:8000",

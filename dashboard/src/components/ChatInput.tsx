@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import type { PhaseId } from '../types';
+import { useColors } from '../ThemeContext';
 
 const PHASE_CHIPS: Partial<Record<PhaseId, string[]>> = {
   INTAKE: ['What controls failed?', 'Show incident timeline'],
@@ -14,10 +15,12 @@ const PHASE_CHIPS: Partial<Record<PhaseId, string[]>> = {
 interface ChatInputProps {
   currentPhase: PhaseId | null;
   isTracing: boolean;
+  isConnected: boolean;
   onSend: (text: string) => void;
 }
 
-export function ChatInput({ currentPhase, isTracing, onSend }: ChatInputProps) {
+export function ChatInput({ currentPhase, isTracing, isConnected, onSend }: ChatInputProps) {
+  const c = useColors();
   const [value, setValue] = useState('');
   const chips = currentPhase ? (PHASE_CHIPS[currentPhase] ?? []) : [];
 
@@ -35,8 +38,8 @@ export function ChatInput({ currentPhase, isTracing, onSend }: ChatInputProps) {
   return (
     <div
       style={{
-        borderTop: '1px solid #111827',
-        backgroundColor: '#030712',
+        borderTop: `1px solid ${c.border}`,
+        backgroundColor: c.bg,
         padding: '10px 16px 12px',
         flexShrink: 0,
       }}
@@ -86,12 +89,24 @@ export function ChatInput({ currentPhase, isTracing, onSend }: ChatInputProps) {
         >
           ›
         </span>
+        {/* Connection indicator */}
+        <span
+          title={isConnected ? 'Connected to backend' : 'Offline — mock mode'}
+          style={{
+            display: 'inline-block',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: isConnected ? '#22c55e' : '#ef4444',
+            flexShrink: 0,
+          }}
+        />
         <input
           type="text"
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKey}
-          placeholder={isTracing ? 'Agents working...' : 'Ask about this incident...'}
+          placeholder={isTracing ? 'Agents working...' : isConnected ? 'Ask about this incident...' : 'Ask about this incident (offline)...'}
           disabled={isTracing}
           style={{
             flex: 1,
@@ -100,8 +115,8 @@ export function ChatInput({ currentPhase, isTracing, onSend }: ChatInputProps) {
             outline: 'none',
             fontFamily: 'IBM Plex Mono, monospace',
             fontSize: '12px',
-            color: '#e2e8f0',
-            caretColor: '#3b82f6',
+            color: c.textPrimary,
+            caretColor: c.accent,
           }}
         />
         <button

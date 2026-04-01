@@ -79,3 +79,36 @@
 .animate-blink {
   animation: blink 1s step-end infinite;
 }
+
+/* Progress bar */
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); width: 30%; }
+  50% { width: 50%; }
+  100% { transform: translateX(400%); width: 30%; }
+}
+.animate-progress {
+  animation: progress-indeterminate 1.8s ease-in-out infinite;
+}
+
+/* Accordion sections */
+.section-body {
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+}
+.section-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+.section-body.expanded {
+  max-height: 5000px;
+  opacity: 1;
+}
+.chevron {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 10px;
+  color: #64748b;
+}
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}

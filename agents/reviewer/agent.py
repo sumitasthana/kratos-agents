@@ -293,20 +293,25 @@ class ReviewerAgent(BaseAgent):
             val_report.passed,
         )
 
-        # Step 2: LLM coherence check (soft — adds feedback only, doesn't fail)
+        # Step 2: LLM coherence check — SKIP when deterministic checks all pass
+        # This saves ~2,000 tokens per run (the reviewer system prompt is 8.5KB).
         llm_gaps:     List[str] = []
         llm_feedback: List[str] = []
-        try:
-            user_msg = self._build_user_message(context)
-            raw_llm  = await self._call_llm(self._build_system_prompt(), user_msg)
-            raw_str  = raw_llm.strip()
-            if "```" in raw_str:
-                raw_str = raw_str.split("```")[-2].lstrip("json").strip()
-            llm_parsed: Dict[str, Any] = json.loads(raw_str)
-            llm_gaps     = llm_parsed.get("gaps", [])
-            llm_feedback = llm_parsed.get("feedback", [])
-        except Exception as exc:
-            logger.debug("[ReviewerAgent] LLM coherence check skipped: %s", exc)
+        if val_report.gap_count > 0:
+            # Only call LLM when there are gaps to get improvement suggestions
+            try:
+                user_msg = self._build_user_message(context)
+                raw_llm  = await self._call_llm(self._build_system_prompt(), user_msg)
+                raw_str  = raw_llm.strip()
+                if "```" in raw_str:
+                    raw_str = raw_str.split("```")[-2].lstrip("json").strip()
+                llm_parsed: Dict[str, Any] = json.loads(raw_str)
+                llm_gaps     = llm_parsed.get("gaps", [])
+                llm_feedback = llm_parsed.get("feedback", [])
+            except Exception as exc:
+                logger.debug("[ReviewerAgent] LLM coherence check skipped: %s", exc)
+        else:
+            logger.info("[ReviewerAgent] All checks passed — skipping LLM coherence call (saves ~2K tokens)")
 
         all_gaps     = [c.detail for c in val_report.checks if not c.passed] + llm_gaps
         all_feedback = val_report.feedback + llm_feedback

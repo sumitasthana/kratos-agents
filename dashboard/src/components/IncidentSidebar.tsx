@@ -1,4 +1,5 @@
 import type { Incident, Priority } from '../types';
+import { useColors } from '../ThemeContext';
 
 const PRIORITY_STYLE: Record<Priority, { bg: string; border: string; text: string; label: string }> = {
   P1: { bg: '#2a1215', border: '#dc2626', text: '#fca5a5', label: 'P1' },
@@ -15,8 +16,10 @@ interface IncidentSidebarProps {
   onToggle: () => void;
 }
 
+const FALLBACK_STYLE = { bg: '#1a1a2e', border: '#6366f1', text: '#a5b4fc', label: '??' };
+
 function SeverityBadge({ severity }: { severity: Priority }) {
-  const s = PRIORITY_STYLE[severity];
+  const s = PRIORITY_STYLE[severity] ?? FALLBACK_STYLE;
   return (
     <span
       style={{
@@ -43,6 +46,7 @@ export function IncidentSidebar({
   onSelect,
   onToggle,
 }: IncidentSidebarProps) {
+  const c = useColors();
   const activeCount = incidents.filter(i => i.status === 'active').length;
 
   if (collapsed) {
@@ -51,8 +55,8 @@ export function IncidentSidebar({
         style={{
           width: '32px',
           flexShrink: 0,
-          borderRight: '1px solid #111827',
-          backgroundColor: '#0f172a',
+          borderRight: `1px solid ${c.border}`,
+          backgroundColor: c.bgElevated,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -83,8 +87,8 @@ export function IncidentSidebar({
       style={{
         width: '280px',
         flexShrink: 0,
-        borderRight: '1px solid #111827',
-        backgroundColor: '#0f172a',
+        borderRight: `1px solid ${c.border}`,
+        backgroundColor: c.bgElevated,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -94,7 +98,7 @@ export function IncidentSidebar({
       <div
         style={{
           padding: '10px 14px',
-          borderBottom: '1px solid #111827',
+          borderBottom: `1px solid ${c.border}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -103,7 +107,7 @@ export function IncidentSidebar({
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <span
             className="animate-pulse-dot"
-            style={{ color: '#3b82f6', fontSize: '8px' }}
+            style={{ color: c.accent, fontSize: '8px' }}
           >
             ●
           </span>
@@ -111,7 +115,7 @@ export function IncidentSidebar({
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '9px',
-              color: '#94a3b8',
+              color: c.textSecondary,
               letterSpacing: '0.1em',
               fontWeight: 600,
             }}
@@ -125,7 +129,7 @@ export function IncidentSidebar({
           style={{
             background: 'none',
             border: 'none',
-            color: '#64748b',
+            color: c.textMuted,
             cursor: 'pointer',
             fontFamily: 'IBM Plex Mono, monospace',
             fontSize: '12px',
@@ -147,10 +151,10 @@ export function IncidentSidebar({
               style={{
                 width: '100%',
                 textAlign: 'left',
-                background: isSelected ? '#030712' : 'none',
+                background: isSelected ? c.bg : 'none',
                 border: 'none',
-                borderBottom: '1px solid #111827',
-                borderLeft: isSelected ? `2px solid #3b82f6` : '2px solid transparent',
+                borderBottom: `1px solid ${c.border}`,
+                borderLeft: isSelected ? `2px solid ${c.accent}` : '2px solid transparent',
                 padding: '10px 12px',
                 cursor: 'pointer',
                 display: 'block',
@@ -169,7 +173,7 @@ export function IncidentSidebar({
                   style={{
                     fontFamily: 'IBM Plex Mono, monospace',
                     fontSize: '10px',
-                    color: isSelected ? '#e2e8f0' : '#94a3b8',
+                    color: isSelected ? c.textPrimary : c.textSecondary,
                     fontWeight: isSelected ? 600 : 400,
                   }}
                 >
@@ -183,7 +187,7 @@ export function IncidentSidebar({
                 style={{
                   margin: '0 0 5px 0',
                   fontSize: '11px',
-                  color: '#64748b',
+                  color: c.textMuted,
                   lineHeight: '1.4',
                   overflow: 'hidden',
                   display: '-webkit-box',
@@ -194,18 +198,18 @@ export function IncidentSidebar({
                 {incident.error}
               </p>
 
-              {/* Job id + time */}
+              {/* Control ID + status */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   fontFamily: 'IBM Plex Mono, monospace',
                   fontSize: '9px',
-                  color: '#334155',
+                  color: c.textFaint,
                 }}
               >
-                <span>{incident.id}</span>
-                <span style={{ color: incident.status === 'active' ? '#dc2626' : '#334155' }}>
+                <span>{incident.control_id || incident.id.slice(0, 12)}</span>
+                <span style={{ color: incident.status === 'active' ? c.error : c.textFaint }}>
                   {incident.status}
                 </span>
               </div>
@@ -218,16 +222,16 @@ export function IncidentSidebar({
       <div
         style={{
           padding: '7px 14px',
-          borderTop: '1px solid #111827',
+          borderTop: `1px solid ${c.border}`,
           display: 'flex',
           justifyContent: 'space-between',
           fontFamily: 'IBM Plex Mono, monospace',
           fontSize: '9px',
-          color: '#334155',
+          color: c.textFaint,
         }}
       >
         <span>Total: {incidents.length}</span>
-        <span style={{ color: activeCount > 0 ? '#dc2626' : '#334155' }}>
+        <span style={{ color: activeCount > 0 ? c.error : c.textFaint }}>
           Active: {activeCount}
         </span>
       </div>

@@ -11,8 +11,12 @@ interface RecommendationCardProps {
   items: RecommendationItem[];
 }
 
+const FALLBACK_STYLE = { bg: '#1a1a2e', border: '#6366f1', text: '#a5b4fc', label: 'Info' };
+
 function PriorityBadge({ priority }: { priority: Priority }) {
-  const s = PRIORITY_STYLE[priority];
+  // Normalize "Priority.P1 Info" → "P1", "Priority.P2" → "P2"
+  const normalizedPriority = priority.replace(/^Priority\./i, '').replace(/\s+\w+$/, '') as Priority;
+  const s = PRIORITY_STYLE[normalizedPriority] ?? FALLBACK_STYLE;
   return (
     <span
       style={{
@@ -27,7 +31,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
         letterSpacing: '0.04em',
       }}
     >
-      {priority} {s.label}
+      {normalizedPriority} {s.label}
     </span>
   );
 }

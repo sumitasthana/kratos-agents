@@ -26,6 +26,9 @@ from core.models import (
 
 logger = logging.getLogger(__name__)
 
+# Max recommendations returned to the client (one per scenario max)
+_MAX_RECOMMENDATIONS = 3
+
 
 # ---------------------------------------------------------------------------
 # Regulation reference lookup
@@ -237,6 +240,33 @@ class RecommendationAgent(BaseAgent):
             )
         return recs
 
+    # ── Deduplication ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def _deduplicate_recs(recs: List[Recommendation]) -> List[Recommendation]:
+        """Remove near-duplicate recommendations by comparing action text.
+
+        Two recommendations are considered duplicates when one action string
+        starts with the first 50 characters of another (prefix match) or when
+        their normalised action text is identical.  The first occurrence (by
+        list order, which is priority-sorted) is kept.
+        """
+        kept: List[Recommendation] = []
+        seen_prefixes: List[str] = []
+        for rec in recs:
+            norm = rec.action.strip().lower()
+            prefix = norm[:50]
+            is_dup = False
+            for sp in seen_prefixes:
+                # Either the new prefix starts with an existing one, or vice-versa
+                if prefix.startswith(sp) or sp.startswith(prefix):
+                    is_dup = True
+                    break
+            if not is_dup:
+                kept.append(rec)
+                seen_prefixes.append(prefix)
+        return kept
+
     # ── invoke() ─────────────────────────────────────────────────────────
 
     async def invoke(self, context: IncidentContext) -> AgentResult:
@@ -260,41 +290,77 @@ class RecommendationAgent(BaseAgent):
 
         all_recs: List[Recommendation] = []
         all_evidence: List[EvidenceObject] = []
-        user_msg = self._build_user_message(context)
 
+        # Collect profile metadata for batched call
+        profile_infos: List[dict] = []
         for i, profile in enumerate(profiles_raw):
             if isinstance(profile, IssueProfile):
                 issue_id = profile.id
                 all_evidence.extend(profile.supporting_evidence)
                 regulation = self._infer_regulation(profile, i)
+                desc = getattr(profile, 'root_cause_hypothesis', '') or str(profile)
             elif isinstance(profile, dict):
                 issue_id = profile.get("id") or str(uuid4())
                 regulation = self._infer_regulation(profile, i)
+                desc = profile.get("root_cause_hypothesis", str(profile))
             else:
                 logger.warning("[RecommendationAgent] Unrecognised profile type: %s", type(profile))
                 continue
+            profile_infos.append({
+                "issue_id": issue_id,
+                "regulation": regulation,
+                "description": str(desc)[:300],
+            })
 
-            try:
-                raw_llm = await self._call_llm(self._build_system_prompt(), user_msg)
-                recs = self._parse_llm_recs(raw_llm, issue_id)
-            except Exception as exc:
-                logger.warning("[RecommendationAgent] LLM call failed: %s — using heuristics", exc)
-                recs = []
+        # BATCHED LLM CALL: send all profiles in one request instead of N separate calls
+        user_msg = self._build_user_message(context)
+        profile_summary = "\n".join(
+            f"Profile {i+1} [{p['issue_id']}]: {p['description']}"
+            for i, p in enumerate(profile_infos)
+        )
+        batched_user_msg = (
+            f"{user_msg}\n\n"
+            f"Generate ONE set of 3 prioritised recommendations that address "
+            f"ALL {len(profile_infos)} issue profiles below. Do NOT repeat similar "
+            f"recommendations — consolidate overlapping concerns into single actions.\n\n"
+            f"{profile_summary}"
+        )
 
-            if not recs:
-                recs = self._heuristic_recs(profile, issue_id)
+        try:
+            raw_llm = await self._call_llm(self._build_system_prompt(), batched_user_msg)
+            batch_recs = self._parse_llm_recs(raw_llm, profile_infos[0]["issue_id"] if profile_infos else "unknown")
+        except Exception as exc:
+            logger.warning("[RecommendationAgent] Batched LLM call failed: %s — using heuristics", exc)
+            batch_recs = []
 
-            # Enforce regulation_ref and defect_id on every rec
-            for rec in recs:
-                if not rec.regulation_ref:
-                    rec.regulation_ref = regulation
-                if not rec.defect_id:
-                    rec.defect_id = self._next_defect_id()
+        if not batch_recs:
+            # Fallback: heuristic recs from first profile
+            batch_recs = self._heuristic_recs(profiles_raw[0], profile_infos[0]["issue_id"] if profile_infos else "unknown")
 
-            all_recs.extend(recs)
+        # Enforce regulation_ref and defect_id
+        for rec in batch_recs:
+            if not rec.regulation_ref and profile_infos:
+                rec.regulation_ref = profile_infos[0]["regulation"]
+            if not rec.defect_id:
+                rec.defect_id = self._next_defect_id()
+
+        all_recs.extend(batch_recs)
 
         # Sort P1 first
         all_recs.sort(key=lambda r: r.priority.value)
+
+        # Deduplicate near-identical recommendations (overlapping evidence
+        # across profiles often produces the same remediation action).
+        all_recs = self._deduplicate_recs(all_recs)
+
+        # Cap at _MAX_RECOMMENDATIONS to keep the response focused.
+        if len(all_recs) > _MAX_RECOMMENDATIONS:
+            logger.info(
+                "[RecommendationAgent] Capping recommendations from %d to %d",
+                len(all_recs),
+                _MAX_RECOMMENDATIONS,
+            )
+            all_recs = all_recs[:_MAX_RECOMMENDATIONS]
 
         logger.info(
             "[RecommendationAgent] incident=%s profiles=%d recs=%d",

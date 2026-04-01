@@ -46,7 +46,7 @@ export function useIncidents(): UseIncidentsResult {
 
   const fetchIncidents = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8000/incidents');
+      const res = await fetch('http://localhost:8001/incidents');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: Incident[] = await res.json();
       setIncidents(data);

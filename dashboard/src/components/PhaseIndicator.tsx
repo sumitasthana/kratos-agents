@@ -1,23 +1,13 @@
 import type { PhaseId } from '../types';
+import { useColors } from '../ThemeContext';
 
 const PHASES: PhaseId[] = [
-  'INTAKE',
-  'LOGS_FIRST',
-  'ROUTE',
-  'BACKTRACK',
-  'INCIDENT_CARD',
-  'RECOMMEND',
-  'PERSIST',
+  'INTAKE', 'LOGS_FIRST', 'ROUTE', 'BACKTRACK', 'INCIDENT_CARD', 'RECOMMEND', 'PERSIST',
 ];
 
 const PHASE_LABELS: Record<PhaseId, string> = {
-  INTAKE: 'INTAKE',
-  LOGS_FIRST: 'LOGS',
-  ROUTE: 'ROUTE',
-  BACKTRACK: 'BACKTRACK',
-  INCIDENT_CARD: 'INCIDENT',
-  RECOMMEND: 'RECOMMEND',
-  PERSIST: 'PERSIST',
+  INTAKE: 'INTAKE', LOGS_FIRST: 'LOGS', ROUTE: 'ROUTE', BACKTRACK: 'BACKTRACK',
+  INCIDENT_CARD: 'INCIDENT', RECOMMEND: 'RECOMMEND', PERSIST: 'PERSIST',
 };
 
 interface PhaseIndicatorProps {
@@ -25,6 +15,7 @@ interface PhaseIndicatorProps {
 }
 
 export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
+  const c = useColors();
   const currentIndex = currentPhase ? PHASES.indexOf(currentPhase) : -1;
 
   return (
@@ -34,8 +25,8 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
         alignItems: 'center',
         gap: '4px',
         padding: '8px 16px',
-        borderBottom: '1px solid #111827',
-        backgroundColor: '#0f172a',
+        borderBottom: `1px solid ${c.border}`,
+        backgroundColor: c.bgElevated,
       }}
     >
       {PHASES.map((phase, i) => {
@@ -43,40 +34,20 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
         const isCurrent = i === currentIndex;
         const isPending = i > currentIndex;
 
-        const segColor = isCompleted
-          ? '#22c55e'
-          : isCurrent
-          ? '#3b82f6'
-          : '#1e293b';
+        const segColor = isCompleted ? c.success : isCurrent ? c.accent : c.borderSubtle;
 
         return (
           <div key={phase} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {i > 0 && (
-              <span
-                style={{
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  fontSize: '9px',
-                  color: '#334155',
-                  marginRight: '0px',
-                }}
-              >
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '9px', color: c.textFaint }}>
                 —
               </span>
             )}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div
                 style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: segColor,
-                  flexShrink: 0,
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  backgroundColor: segColor, flexShrink: 0,
                 }}
               />
               <span
@@ -84,13 +55,7 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
                   fontFamily: 'IBM Plex Mono, monospace',
                   fontSize: '9px',
                   fontWeight: isCurrent ? 600 : 400,
-                  color: isCompleted
-                    ? '#22c55e'
-                    : isCurrent
-                    ? '#93c5fd'
-                    : isPending
-                    ? '#334155'
-                    : '#334155',
+                  color: isCompleted ? c.success : isCurrent ? c.accentLight : c.textFaint,
                   letterSpacing: '0.05em',
                 }}
               >
@@ -105,20 +70,9 @@ export function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div
             className="animate-pulse-dot"
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: '#3b82f6',
-            }}
+            style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: c.accent }}
           />
-          <span
-            style={{
-              fontFamily: 'IBM Plex Mono, monospace',
-              fontSize: '10px',
-              color: '#93c5fd',
-            }}
-          >
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '10px', color: c.accentLight }}>
             {currentPhase}
           </span>
         </div>

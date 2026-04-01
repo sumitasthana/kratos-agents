@@ -144,14 +144,18 @@ const MOCK_MESSAGES: RcaMessage[] = [
 interface UseRcaStreamResult {
   messages: RcaMessage[];
   isTracing: boolean;
+  isConnected: boolean;                      // true when WS is live to backend
   currentPhase: PhaseId | null;
-  connect: (incidentId: string) => void;
+  connect: (incidentId: string, mode?: 'rca' | 'chat') => void;
   disconnect: () => void;
+  startTrace: (incidentId: string) => void;  // alias for connect (rca mode)
+  send: (query: string) => void;             // send follow-up chat query
 }
 
 export function useRcaStream(): UseRcaStreamResult {
   const [messages, setMessages] = useState<RcaMessage[]>([]);
   const [isTracing, setIsTracing] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<PhaseId | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -202,57 +206,172 @@ export function useRcaStream(): UseRcaStreamResult {
     setIsTracing(false);
   }, []);
 
-  const connect = useCallback((incidentId: string) => {
+  const connect = useCallback((incidentId: string, mode: 'rca' | 'chat' = 'rca') => {
     disconnect();
     incidentIdRef.current = incidentId;
     setMessages([]);
     setCurrentPhase(null);
 
-    const ws = new WebSocket('ws://localhost:5001/ws');
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const apiHost = window.location.hostname;
+    const ws = new WebSocket(`${wsScheme}://${apiHost}:8001/ws`);
     wsRef.current = ws;
 
+    // Guard: ignore events from a stale WebSocket after a new connect() call.
+    const isStale = () => wsRef.current !== ws;
+
     ws.onopen = () => {
-      setIsTracing(true);
-      ws.send(JSON.stringify({ type: 'start_trace', incident_id: incidentId }));
+      if (isStale()) return;
+      setIsTracing(mode === 'rca');
+      setIsConnected(true);
+      setCurrentPhase(mode === 'chat' ? 'PERSIST' : null);
+      ws.send(JSON.stringify({ incident_id: incidentId, mode }));
     };
 
     ws.onmessage = (event) => {
+      if (isStale()) return;
       try {
         const msg: RcaMessage = JSON.parse(event.data as string);
+
+        // Skip keepalive messages from the timeline — just update phase
+        if (msg.type === 'system' && typeof msg.text === 'string' && msg.text.startsWith('Pipeline running')) {
+          setCurrentPhase(msg.phase);
+          return;
+        }
+
         setMessages(prev => [...prev, msg]);
         setCurrentPhase(msg.phase);
+        if (msg.phase === 'PERSIST' && msg.type === 'system') {
+          setIsTracing(false);
+        }
       } catch {
         // ignore malformed
       }
     };
 
     ws.onerror = () => {
+      if (isStale()) return;
       wsRef.current = null;
-      startMockStream();
+      setIsConnected(false);
     };
 
     ws.onclose = (e) => {
+      console.warn('[WS] onclose fired — code:', e.code, 'reason:', e.reason, 'wasClean:', e.wasClean, 'stale:', isStale());
+      console.trace('[WS] close stack trace');
+      // If a newer connection replaced this one, ignore entirely.
+      if (isStale()) return;
+      setIsConnected(false);
+      setIsTracing(false);
+      wsRef.current = null;
       if (e.code !== 1000) {
-        wsRef.current = null;
-        startMockStream();
-      } else {
-        setIsTracing(false);
+        setMessages(prev => {
+          if (prev.length === 0) {
+            console.warn('[WS] no messages — starting mock stream');
+            setTimeout(() => startMockStream(), 0);
+          }
+          return prev;
+        });
       }
     };
 
-    // If WS doesn't open within 1.5s, fall back to mock
+    // If WS doesn't open within 10s, fall back to mock.
+    // Generous timeout: the real-mode orchestrator sends the first INTAKE
+    // message within ~0.5s of connecting, so 10s is enough buffer.
     const timeout = setTimeout(() => {
       if (ws.readyState !== WebSocket.OPEN) {
         ws.close();
         wsRef.current = null;
+        setIsConnected(false);
         startMockStream();
       }
-    }, 1500);
+    }, 10000);
 
     ws.addEventListener('open', () => clearTimeout(timeout));
   }, [disconnect, startMockStream]);
 
+  const send = useCallback((query: string) => {
+    // Append user message to the stream so it renders in the chat
+    const userMsg: RcaMessage = {
+      id: `user-${Date.now()}`,
+      type: 'user' as const,
+      phase: currentPhase ?? 'PERSIST',
+      timestamp: Date.now(),
+      text: query,
+    };
+    setMessages(prev => [...prev, userMsg]);
+
+    // Send to backend via open WebSocket
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'chat', query }));
+    } else {
+      // WebSocket not connected — show offline notice and attempt reconnect
+      const offlineMsg: RcaMessage = {
+        id: `sys-offline-${Date.now()}`,
+        type: 'agent' as const,
+        phase: currentPhase ?? 'PERSIST',
+        timestamp: Date.now(),
+        agent: 'Kratos',
+        text: 'Chat is not connected to the backend. Attempting to reconnect…',
+        tag: 'info',
+      };
+      setMessages(prev => [...prev, offlineMsg]);
+
+      // Attempt to reconnect and resend
+      const incId = incidentIdRef.current || 'INC-UNKNOWN';
+      const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const apiHost = window.location.hostname;
+      const reconnectWs = new WebSocket(`${wsScheme}://${apiHost}:8001/ws`);
+
+      reconnectWs.onopen = () => {
+        wsRef.current = reconnectWs;
+        // Re-initiate session then send the chat query
+        reconnectWs.send(JSON.stringify({ incident_id: incId }));
+
+        // Attach persistent message handler
+        reconnectWs.onmessage = (event) => {
+          try {
+            const msg: RcaMessage = JSON.parse(event.data as string);
+
+            // Skip keepalive messages from the timeline — just update phase
+            if (msg.type === 'system' && typeof msg.text === 'string' && msg.text.startsWith('Pipeline running')) {
+              setCurrentPhase(msg.phase);
+              return;
+            }
+
+            setMessages(prev => [...prev, msg]);
+            setCurrentPhase(msg.phase);
+          } catch {
+            // ignore malformed
+          }
+        };
+        reconnectWs.onclose = () => { wsRef.current = null; };
+        reconnectWs.onerror = () => { wsRef.current = null; };
+
+        // Wait briefly for the pipeline to stream, then send the chat query
+        setTimeout(() => {
+          if (reconnectWs.readyState === WebSocket.OPEN) {
+            reconnectWs.send(JSON.stringify({ type: 'chat', query }));
+          }
+        }, 2000);
+      };
+
+      reconnectWs.onerror = () => {
+        const errMsg: RcaMessage = {
+          id: `sys-err-${Date.now()}`,
+          type: 'agent' as const,
+          phase: currentPhase ?? 'PERSIST',
+          timestamp: Date.now(),
+          agent: 'Kratos',
+          text: 'Could not connect to the Kratos backend on port 8001. Make sure the API server is running (.\start.ps1).',
+          tag: 'info',
+        };
+        setMessages(prev => [...prev, errMsg]);
+      };
+    }
+  }, [currentPhase]);
+
   useEffect(() => () => disconnect(), [disconnect]);
 
-  return { messages, isTracing, currentPhase, connect, disconnect };
+  return { messages, isTracing, isConnected, currentPhase, connect, disconnect, startTrace: connect, send };
 }

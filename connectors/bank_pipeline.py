@@ -114,7 +114,7 @@ class BankPipelineConnector(BaseConnector):
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
+        base_url: str = "http://localhost:8080",
         token: Optional[str] = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
@@ -191,7 +191,8 @@ class BankPipelineConnector(BaseConnector):
         Fetch the full RCA context bundle for *incident_id*.
 
         Calls GET /rca/context/{id} and maps the response to IncidentContext.
-        Retries on transient HTTP errors (502/503/504) and timeouts.
+        Translates My_Bank structured evidence into the metadata keys that
+        Kratos tools expect (data_profile, airflow_logs, git_artifacts, etc.).
         """
         async def _fetch():
             resp = await self._http.get(f"/rca/context/{incident_id}")
@@ -200,22 +201,176 @@ class BankPipelineConnector(BaseConnector):
 
         data: dict = await _with_retry(_fetch)
 
-        # failed_controls arrives as a list of dicts; surface IDs only.
-        # Full control objects are preserved in metadata for agent use.
-        raw_controls: list[dict] = data.get("failed_controls", [])
-        control_ids = [c.get("control_id", str(c)) for c in raw_controls]
+        # ── Extract top-level sections (guard against explicit nulls) ────
+        incident   = data.get("incident") or {}
+        control    = data.get("control") or {}
+        chain      = data.get("control_chain") or {}
+        entities   = data.get("implicated_entities") or {}
+        evidence   = data.get("evidence") or []
+        traversal  = data.get("ontology_traversal") or {}
+        history    = data.get("control_history") or []
+
+        source_system = incident.get("source_system", "unknown")
+        stage         = incident.get("stage", "unknown")
+        control_id    = incident.get("control_id", "")
+        created_at    = incident.get("created_at", "")
+
+        # Script & code-event nodes from the control chain
+        # Use `or {}` to guard against explicit JSON nulls
+        script_node   = chain.get("script") or {}
+        script_props  = script_node.get("properties") or {}
+        code_event    = entities.get("code_event") or {}
+        event_props   = code_event.get("properties") or {}
+
+        # ── Build tool-compatible metadata ──────────────────────────────
+
+        # 1. data_profile — from evidence violation summaries
+        columns = []
+        total_records = 0
+        for field in control.get("applicable_fields", []):
+            columns.append({"name": field, "dtype": "string", "null_rate": 0.0})
+        for ev in evidence:
+            cj = ev.get("content_json", {})
+            violations = cj.get("violation_summary", [])
+            if isinstance(violations, list):
+                total_records += len(violations)
+
+        data_profile = {
+            "dataset_name": f"{source_system}.{stage}",
+            "row_count": max(total_records, 1),
+            "columns": columns or [{"name": "unknown", "dtype": "string", "null_rate": 0.0}],
+        }
+
+        # 2. airflow_logs — from evidence and stage info
+        log_lines = []
+        for ev in evidence:
+            cj = ev.get("content_json", {})
+            rule = cj.get("rule", "")
+            if rule:
+                log_lines.append(f"[CONTROL] {rule}")
+            violations = cj.get("violation_summary", [])
+            if isinstance(violations, list):
+                for v in violations[:5]:
+                    log_lines.append(f"[VIOLATION] {json.dumps(v)}")
+
+        airflow_logs = {
+            "dag_id": f"{source_system}_pipeline",
+            "task_id": stage,
+            "execution_date": created_at,
+            "log_lines": log_lines or [f"[INFO] Control {control_id} evaluated"],
+        }
+
+        # 3. git_artifacts — from script node and code event
+        git_files = []
+        if script_props.get("path"):
+            diff_lines = []
+            if script_props.get("known_issue"):
+                diff_lines.append(f"--- Known Issue ---")
+                diff_lines.append(f"+ {script_props['known_issue']}")
+            if event_props.get("change"):
+                diff_lines.append(f"--- Last Change ---")
+                diff_lines.append(f"+ {event_props['change']}")
+
+            git_files.append({
+                "file_path": script_props["path"],
+                "commits": [{
+                    "commit_hash": code_event.get("node_id", "HEAD"),
+                    "author": event_props.get("author", "ops-automation"),
+                    "date": event_props.get("date", created_at),
+                    "message": event_props.get("change", f"Change to {script_props['path']}"),
+                    "diff": "\n".join(diff_lines) if diff_lines else f"# {script_node.get('label', 'unknown')}",
+                }],
+            })
+
+        git_artifacts = {"files": git_files} if git_files else {}
+
+        # 4. change_fingerprint — from code event
+        change_commits = []
+        if code_event:
+            change_commits.append({
+                "hash": code_event.get("node_id", "unknown"),
+                "author": event_props.get("author", "unknown"),
+                "timestamp": event_props.get("date", created_at),
+                "files": [{
+                    "path": script_props.get("path", "unknown"),
+                    "added": 5,
+                    "deleted": 0,
+                }],
+            })
+
+        change_fingerprint = {
+            "repo_name": source_system,
+            "commits": change_commits,
+        }
+
+        # ── Build ontology snapshot ─────────────────────────────────────
+        ontology_snapshot = {
+            "control_chain": chain,
+            "implicated_entities": entities,
+            "ontology_traversal": traversal,
+        }
+
+        # ── Assemble IncidentContext ────────────────────────────────────
+        metadata = {
+            "data_profile": data_profile,
+            "airflow_logs": airflow_logs,
+            "git_artifacts": git_artifacts,
+            "change_fingerprint": change_fingerprint,
+            # Preserve full My_Bank context for chat and audit
+            "rca_context": data,
+            "control": control,
+            "control_chain": chain,
+            "implicated_entities": entities,
+            "evidence": evidence,
+            "control_history": history,
+        }
 
         return IncidentContext(
-            incident_id=data.get("incident_id", incident_id),
-            run_id=data.get("run_id", ""),
-            pipeline_stage=data.get("pipeline_stage", ""),
-            failed_controls=control_ids,
-            ontology_snapshot=data.get("ontology_snapshot", {}),
-            metadata={
-                **data.get("metadata", {}),
-                "_raw_controls": raw_controls,
-            },
+            incident_id=incident.get("incident_id", incident_id),
+            run_id=incident.get("run_id", ""),
+            pipeline_stage=stage,
+            failed_controls=[control_id] if control_id else [],
+            ontology_snapshot=ontology_snapshot,
+            metadata=metadata,
         )
+
+    async def persist_rca(self, summary: dict) -> None:
+        """Submit RCA results back to My_Bank via POST /rca/results/{id}."""
+        incident_id = summary.get("incident_id", "")
+        if not incident_id:
+            logger.warning("persist_rca: no incident_id in summary — skipping")
+            return
+
+        # Extract root cause entity from evidence if available
+        root_cause_entity_id = ""
+        root_cause_entity_type = "Script"
+        rca_context = summary.get("_rca_context", {})
+        chain = rca_context.get("control_chain", {})
+        script = chain.get("script", {})
+        if script.get("node_id"):
+            root_cause_entity_id = script["node_id"]
+
+        payload = {
+            "root_cause": summary.get("final_root_cause", "Unknown"),
+            "root_cause_entity_type": root_cause_entity_type,
+            "root_cause_entity_id": root_cause_entity_id,
+            "confidence_score": summary.get("confidence_score", 0.50),
+            "recommendation": "",
+            "evidence_summary": summary.get("final_root_cause", ""),
+            "supporting_entities": [],
+            "traversal_path": [],
+            "reasoning_summary": summary.get("final_root_cause", ""),
+            "submitted_by": "kratos-rca-agent",
+        }
+
+        try:
+            resp = await self._http.post(f"/rca/results/{incident_id}", json=payload)
+            if resp.is_error:
+                logger.warning("persist_rca: HTTP %s — %s", resp.status_code, resp.text[:200])
+            else:
+                logger.info("persist_rca: submitted RCA result for %s", incident_id)
+        except Exception as exc:
+            logger.warning("persist_rca: failed to submit — %s", exc)
 
     async def stream_logs(self, incident_id: str) -> AsyncIterator[LogChunk]:
         """

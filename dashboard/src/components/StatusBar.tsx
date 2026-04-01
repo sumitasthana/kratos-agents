@@ -1,4 +1,5 @@
 import type { PhaseId } from '../types';
+import { useColors } from '../ThemeContext';
 
 interface StatusBarProps {
   isTracing: boolean;
@@ -9,19 +10,20 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ isTracing, currentPhase, evidenceCount, hopCount, incidentId }: StatusBarProps) {
+  const c = useColors();
   return (
     <div
       style={{
         height: '28px',
-        backgroundColor: '#0f172a',
-        borderTop: '1px solid #111827',
+        backgroundColor: c.bgElevated,
+        borderTop: `1px solid ${c.border}`,
         display: 'flex',
         alignItems: 'center',
         padding: '0 16px',
         gap: '16px',
         fontFamily: 'IBM Plex Mono, monospace',
         fontSize: '10px',
-        color: '#64748b',
+        color: c.textMuted,
         flexShrink: 0,
       }}
     >
@@ -30,53 +32,53 @@ export function StatusBar({ isTracing, currentPhase, evidenceCount, hopCount, in
         <span
           style={{
             fontSize: '8px',
-            color: isTracing ? '#3b82f6' : currentPhase ? '#22c55e' : '#334155',
+            color: isTracing ? c.accent : currentPhase ? c.success : c.textFaint,
           }}
           className={isTracing ? 'animate-pulse-dot' : ''}
         >
           ●
         </span>
-        <span style={{ color: isTracing ? '#93c5fd' : currentPhase ? '#22c55e' : '#334155' }}>
+        <span style={{ color: isTracing ? c.accentLight : currentPhase ? c.success : c.textFaint }}>
           {isTracing ? 'TRACING' : currentPhase ? 'COMPLETE' : 'IDLE'}
         </span>
       </div>
 
-      <span style={{ color: '#1e293b' }}>|</span>
+      <span style={{ color: c.border }}>|</span>
 
       {/* Incident */}
       {incidentId && (
         <>
-          <span style={{ color: '#94a3b8' }}>{incidentId}</span>
-          <span style={{ color: '#1e293b' }}>|</span>
+          <span style={{ color: c.textSecondary }}>{incidentId}</span>
+          <span style={{ color: c.border }}>|</span>
         </>
       )}
 
       {/* Evidence count */}
       <span>
         Evidence:{' '}
-        <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{evidenceCount}</span>
+        <span style={{ color: c.textPrimary, fontWeight: 500 }}>{evidenceCount}</span>
       </span>
 
-      <span style={{ color: '#1e293b' }}>|</span>
+      <span style={{ color: c.border }}>|</span>
 
       {/* Hop count */}
       <span>
         Hops:{' '}
-        <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{hopCount}</span>
+        <span style={{ color: c.textPrimary, fontWeight: 500 }}>{hopCount}</span>
       </span>
 
       {currentPhase && (
         <>
-          <span style={{ color: '#1e293b' }}>|</span>
+          <span style={{ color: c.border }}>|</span>
           <span>
             Phase:{' '}
-            <span style={{ color: '#93c5fd' }}>{currentPhase}</span>
+            <span style={{ color: c.accentLight }}>{currentPhase}</span>
           </span>
         </>
       )}
 
       {/* Branding */}
-      <div style={{ marginLeft: 'auto', color: '#334155', letterSpacing: '0.08em', fontSize: '9px' }}>
+      <div style={{ marginLeft: 'auto', color: c.textFaint, letterSpacing: '0.08em', fontSize: '9px' }}>
         KRATOS RCA ENGINE v2
       </div>
     </div>

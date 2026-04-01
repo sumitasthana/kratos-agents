@@ -140,6 +140,14 @@ class KratosOrchestrator:
         wall_start = time.monotonic()
         state      = _PipelineState()
 
+        # Ensure the connector is connected before pipeline starts.
+        connect_fn = getattr(self._connector, "connect", None)
+        if connect_fn is not None:
+            try:
+                await connect_fn()
+            except Exception as exc:
+                logger.warning("[Orchestrator] Connector connect() failed: %s — using synthetic context", exc)
+
         # ── Phase 1: INTAKE ──────────────────────────────────────────────────
         intake_cfg  = PHASE_REGISTRY[Phase.INTAKE]
         try:
@@ -159,6 +167,14 @@ class KratosOrchestrator:
 
         if not intake_result.success:
             return self._build_report(incident_id, state, time.monotonic() - wall_start)
+
+        # ── Inject My_Bank evidence as pre-formed EvidenceObjects ─────────
+        # The connector translates My_Bank /rca/context into structured
+        # metadata.  Convert the raw evidence list and control chain into
+        # EvidenceObjects so downstream phases (routing, triangulation,
+        # recommendations) have real data — regardless of whether the
+        # generic Spark/Airflow tools find anything.
+        self._inject_connector_evidence(context, state)
 
         # ── Phases 2-7: iterate the registry ─────────────────────────────────
         current_phase: Optional[Phase] = Phase.LOGS_FIRST
@@ -267,6 +283,149 @@ class KratosOrchestrator:
         return PhaseResult(phase=cfg.phase, success=True, metadata={"skipped": True})
 
     # -------------------------------------------------------------------------
+    # Connector evidence injection
+    # -------------------------------------------------------------------------
+
+    def _inject_connector_evidence(
+        self,
+        context: IncidentContext,
+        state: _PipelineState,
+    ) -> None:
+        """Convert My_Bank RCA context into EvidenceObjects for the pipeline.
+
+        This bridges the gap between My_Bank's structured evidence
+        (control results, violation summaries, ontology chains) and the
+        Kratos evidence model.  Evidence is injected once during INTAKE so
+        all downstream phases see it.
+        """
+        meta = context.metadata or {}
+        evidence_list = meta.get("evidence", [])
+        control = meta.get("control", {})
+        chain = meta.get("control_chain", {})
+        entities = meta.get("implicated_entities", {})
+        injected = 0
+
+        # 1. Control result evidence — violation summaries
+        for ev in evidence_list if isinstance(evidence_list, list) else []:
+            cj = ev.get("content_json", {})
+            violations = cj.get("violation_summary", [])
+            rule = cj.get("rule", "")
+            source = ev.get("source_system", "control_engine")
+
+            # Build a human-readable description from violations
+            parts = []
+            if rule:
+                parts.append(f"Rule: {rule}")
+            if violations and isinstance(violations, list):
+                parts.append(f"{len(violations)} violation(s) detected")
+                for v in violations[:5]:
+                    orc = v.get("orc_code", "?")
+                    bal = v.get("total_balance", v.get("balance", "?"))
+                    pid = v.get("party_id", v.get("trust_id", "?"))
+                    parts.append(f"  - ORC={orc} party={str(pid)[:8]}... balance=${bal}")
+            smdia = cj.get("smdia")
+            if smdia:
+                parts.append(f"SMDIA threshold: ${smdia}")
+
+            desc = "\n".join(parts) if parts else f"Control result from {source}"
+            state.evidence.append(EvidenceObject(
+                source_tool=f"ControlEngine:{source}",
+                severity=Priority.P1 if violations else Priority.P3,
+                description=desc,
+                defect_id=control.get("control_id"),
+                regulation_ref=control.get("cfr_citation"),
+            ))
+            injected += 1
+
+        # 2. Control chain evidence — the regulatory → rule → script chain
+        reg = chain.get("regulation", {})
+        rule_node = chain.get("rule", {})
+        script = chain.get("script", {})
+        transformation = chain.get("transformation", {})
+        pipeline = chain.get("pipeline", {})
+
+        if reg.get("node_id"):
+            chain_parts = []
+            if reg.get("label"):
+                chain_parts.append(f"Regulation: {reg['label']}")
+            obj = chain.get("control_objective", {})
+            if obj.get("label"):
+                chain_parts.append(f"Control Objective: {obj['label']}")
+            if rule_node.get("label"):
+                chain_parts.append(f"Rule: {rule_node['label']}")
+                if rule_node.get("description"):
+                    chain_parts.append(f"  {rule_node['description']}")
+            if transformation.get("label"):
+                chain_parts.append(f"Transformation: {transformation['label']}")
+            if script.get("label"):
+                chain_parts.append(f"Script: {script['label']}")
+                props = script.get("properties", {})
+                if props.get("path"):
+                    chain_parts.append(f"  File: {props['path']}")
+                if props.get("known_issue"):
+                    chain_parts.append(f"  Known Issue: {props['known_issue']}")
+            if pipeline.get("label"):
+                chain_parts.append(f"Pipeline: {pipeline['label']}")
+
+            state.evidence.append(EvidenceObject(
+                source_tool="OntologyTraversal",
+                severity=Priority.P2,
+                description="\n".join(chain_parts),
+                defect_id=control.get("control_id"),
+                regulation_ref=reg.get("label"),
+            ))
+            injected += 1
+
+        # 3. Implicated entity evidence — system, job, tables, columns
+        sys_node = entities.get("system", {})
+        job_node = entities.get("job", {})
+        tables = entities.get("tables", [])
+        columns = entities.get("columns", [])
+
+        if sys_node.get("node_id") or job_node.get("node_id"):
+            entity_parts = []
+            if sys_node.get("label"):
+                entity_parts.append(f"System: {sys_node['label']} ({sys_node.get('description', '')[:100]})")
+            if job_node.get("label"):
+                entity_parts.append(f"Job: {job_node['label']} ({job_node.get('description', '')[:100]})")
+            if isinstance(tables, list):
+                for t in tables[:5]:
+                    entity_parts.append(f"Table: {t.get('label', t.get('node_id', '?'))}")
+            if isinstance(columns, list):
+                for c in columns[:5]:
+                    entity_parts.append(f"Column: {c.get('label', c.get('node_id', '?'))}")
+
+            state.evidence.append(EvidenceObject(
+                source_tool="EntityAnalysis",
+                severity=Priority.P3,
+                description="\n".join(entity_parts),
+            ))
+            injected += 1
+
+        # 4. Control metadata as evidence
+        if control.get("description"):
+            desc_parts = [
+                f"Control: {control.get('control_name', control.get('control_id', '?'))}",
+                f"Description: {control['description']}",
+            ]
+            if control.get("remediation"):
+                desc_parts.append(f"Recommended Fix: {control['remediation']}")
+            if control.get("source_ref"):
+                desc_parts.append(f"Source: {control['source_ref']}")
+
+            state.evidence.append(EvidenceObject(
+                source_tool="ControlRegistry",
+                severity=Priority.P2,
+                description="\n".join(desc_parts),
+                defect_id=control.get("control_id"),
+                regulation_ref=control.get("cfr_citation"),
+            ))
+            injected += 1
+
+        if injected:
+            logger.info("[INTAKE] Injected %d evidence items from My_Bank connector", injected)
+
+    # -------------------------------------------------------------------------
     # Non-agent phase handlers
     # -------------------------------------------------------------------------
 
@@ -283,14 +442,26 @@ class KratosOrchestrator:
             logger.warning("[Orchestrator] Connector fetch failed: %s — using synthetic context", exc)
             raw = {}
 
+        # Build metadata dict, flattening any nested "metadata" key from
+        # the connector's IncidentContext.model_dump() so that keys like
+        # "evidence", "control", "control_chain" are at the top level.
+        flat_meta: Dict[str, Any] = {}
+        for k, v in raw.items():
+            if k in {"run_id", "pipeline_stage", "failed_controls"}:
+                continue
+            if k == "metadata" and isinstance(v, dict):
+                # Flatten nested connector metadata to top level
+                flat_meta.update(v)
+            else:
+                flat_meta[k] = v
+
         context = IncidentContext(
             incident_id    = incident_id,
             run_id         = raw.get("run_id", incident_id),
             pipeline_stage = raw.get("pipeline_stage", "unknown"),
             failed_controls= raw.get("failed_controls", []),
             ontology_snapshot = {**self._graph_state, **raw.get("ontology_snapshot", {})},
-            metadata       = {k: v for k, v in raw.items()
-                              if k not in {"run_id", "pipeline_stage", "failed_controls"}},
+            metadata       = flat_meta,
         )
         result = PhaseResult(
             phase   = Phase.INTAKE,
@@ -304,7 +475,15 @@ class KratosOrchestrator:
         return context, result
 
     async def _call_connector(self, incident_id: str) -> Dict[str, Any]:
-        """Call connector.fetch_incident() — supports both sync and async."""
+        """Call connector.fetch_incident() — supports both sync and async.
+
+        Auto-connects the connector if it hasn't been connected yet.
+        """
+        # Auto-connect if the connector has a connect() method and no client
+        if hasattr(self._connector, "connect") and hasattr(self._connector, "_client"):
+            if self._connector._client is None:
+                await self._connector.connect()
+
         fn = getattr(self._connector, "fetch_incident", None)
         if fn is None:
             return {}
@@ -348,13 +527,15 @@ class KratosOrchestrator:
                         description=f"Tool {name!r} not available during LOGS_FIRST phase.",
                     )]
                 try:
-                    raw_result = getattr(tool, "run", None)
-                    if raw_result is not None:
-                        agent_result: AgentResult = await raw_result(
-                            incident_id=context.incident_id,
-                            metadata=context.metadata,
-                        )
-                        return agent_result.evidence if isinstance(agent_result, AgentResult) else []
+                    run_fn = getattr(tool, "run", None)
+                    if run_fn is not None:
+                        result = await run_fn(context)
+                        # Tools may return list[EvidenceObject] or AgentResult
+                        if isinstance(result, list):
+                            return result
+                        if isinstance(result, AgentResult):
+                            return result.evidence
+                        return []
                 except Exception as exc:
                     logger.warning("[LOGS_FIRST] Tool %r raised: %s", name, exc)
                     return [EvidenceObject(
@@ -560,64 +741,15 @@ class KratosOrchestrator:
         cfg: PhaseConfig,
     ) -> AgentResult:
         """
-        BACKTRACK: invoke the TriangulationAgent up to *cfg.max_concurrency*
-        times in parallel (each with a different tool-context slice).
+        BACKTRACK: invoke the TriangulationAgent ONCE with all evidence.
 
-        For now we run it once for the full evidence set and once per-tool
-        slice if more than one tool produced evidence, capped at max_concurrency.
-        Results are merged into a single AgentResult.
+        Previously this ran once per tool slice (N parallel calls). Now we
+        send all evidence in a single call to reduce API usage by 60-80%.
+        The agent receives the full evidence set and produces profiles for
+        each distinct finding.
         """
-        from core.base_agent import AgentResult as AR
-
-        evidence: List[Any] = context.metadata.get("evidence", [])
-        tools_used: List[str] = list({
-            e.get("source_tool") if isinstance(e, dict) else getattr(e, "source_tool", "?")
-            for e in evidence
-        } - {None})
-
-        if len(tools_used) <= 1:
-            # Only one evidence source — single invocation
-            return await agent.invoke(context)
-
-        sem = asyncio.Semaphore(cfg.max_concurrency)
-
-        async def _invoke_slice(tool_name: str) -> AR:
-            async with sem:
-                sliced_ev = [
-                    e for e in evidence
-                    if (e.get("source_tool") if isinstance(e, dict) else getattr(e, "source_tool", "")) == tool_name
-                ]
-                sliced_ctx = IncidentContext(
-                    incident_id       = context.incident_id,
-                    run_id            = context.run_id,
-                    pipeline_stage    = context.pipeline_stage,
-                    failed_controls   = context.failed_controls,
-                    ontology_snapshot = context.ontology_snapshot,
-                    metadata          = {**context.metadata, "evidence": sliced_ev},
-                )
-                return await agent.invoke(sliced_ctx)
-
-        results: List[AR] = await asyncio.gather(
-            *[_invoke_slice(t) for t in tools_used[:cfg.max_concurrency]],
-            return_exceptions=False,
-        )
-
-        # Merge all partial results into one
-        merged_evidence       = [ev for r in results for ev in (r.evidence or [])]
-        merged_profiles       = [p  for r in results for p  in (r.issue_profiles or [])]
-        merged_recs           = [rc for r in results for rc in (r.recommendations or [])]
-        metadata              = {}
-        for r in results:
-            metadata.update(r.metadata or {})
-
-        return AR(
-            agent_name    = getattr(agent, "agent_name", "TriangulationAgent"),
-            evidence      = merged_evidence,
-            issue_profiles= merged_profiles,
-            recommendations= merged_recs,
-            next_phase    = "recommendation",
-            metadata      = metadata,
-        )
+        # Single invocation with full evidence — no tool slicing
+        return await agent.invoke(context)
 
     # -------------------------------------------------------------------------
     # Reviewer feedback loop

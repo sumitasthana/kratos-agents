@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 _DOTENV_LOADED = False
 
+# Cache: (provider, model, temperature, max_tokens) → LLM client instance
+_LLM_CACHE: dict[tuple, Any] = {}
+
 
 # ============================================================================
 # LLM CONFIGURATION
@@ -41,7 +44,7 @@ class LLMConfig(BaseModel):
     provider:    str   = Field(default="openai",  description="openai | anthropic")
     model:       str   = Field(default="gpt-4.1", description="Model name")
     temperature: float = Field(default=0.2,       description="Sampling temperature")
-    max_tokens:  int   = Field(default=2000,      description="Max response tokens")
+    max_tokens:  int   = Field(default=4000,      description="Max response tokens")
 
 
 # ============================================================================
@@ -58,12 +61,25 @@ def _load_dotenv_once() -> None:
 
 def get_llm(llm_config: LLMConfig) -> Any:
     """
-    Instantiate and return a LangChain LLM client for the given config.
-    Lazy-loads .env from the repo root on first call.
-    """
-    from langchain_openai import ChatOpenAI
+    Return a cached LangChain LLM client for the given config.
 
+    Clients are keyed by (provider, model, temperature, max_tokens) so the
+    same underlying HTTP connection pool is reused across calls.  This
+    eliminates the ~5 s per-call overhead of constructing a new ChatOpenAI
+    every time.
+    """
     _load_dotenv_once()
+
+    cache_key = (
+        llm_config.provider,
+        llm_config.model,
+        llm_config.temperature,
+        llm_config.max_tokens,
+    )
+
+    cached = _LLM_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
 
     logger.info(
         "[LLM] Initializing %s | model=%s | temp=%s | max_tokens=%s",
@@ -74,21 +90,26 @@ def get_llm(llm_config: LLMConfig) -> Any:
     )
 
     if llm_config.provider == "openai":
-        return ChatOpenAI(
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
             model       = llm_config.model,
             temperature = llm_config.temperature,
             max_tokens  = llm_config.max_tokens,
         )
-    if llm_config.provider == "anthropic":
+    elif llm_config.provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
+        llm = ChatAnthropic(
             model       = llm_config.model,
             temperature = llm_config.temperature,
             max_tokens  = llm_config.max_tokens,
         )
-    raise ValueError(
-        f"Unsupported LLM provider: {llm_config.provider!r}. Supported: openai, anthropic"
-    )
+    else:
+        raise ValueError(
+            f"Unsupported LLM provider: {llm_config.provider!r}. Supported: openai, anthropic"
+        )
+
+    _LLM_CACHE[cache_key] = llm
+    return llm
 
 
 def build_chain(llm_config: LLMConfig, system_prompt: str) -> Any:
@@ -97,8 +118,12 @@ def build_chain(llm_config: LLMConfig, system_prompt: str) -> Any:
     from langchain_core.output_parsers import StrOutputParser
 
     llm    = get_llm(llm_config)
+    # Escape any literal curly braces in the system prompt so LangChain
+    # doesn't interpret them as template variables (e.g. JSON snippets,
+    # code fragments in evidence text).
+    safe_system = system_prompt.replace("{", "{{").replace("}", "}}")
     prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
+        ("system", safe_system),
         ("human", "{input}"),
     ])
     return prompt | llm | StrOutputParser()
